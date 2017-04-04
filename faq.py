@@ -110,7 +110,7 @@ def get_header():
         sys.exit(0)
 
 
-def print_prompt(column_names, prompt=None):
+def print_prompt(column_names):
     """Pretty-print column names to the user.
 
     This function is only called if the user runs this script as
@@ -124,7 +124,7 @@ def print_prompt(column_names, prompt=None):
     """
 
     # Define our prompt and print the header to our 'table'.
-    prompt = "\n{}".format(prompt)
+    prompt = "\nInput file contained the following columns:"
     print(prompt, '-' * len(prompt), sep='\n')
 
     # The following code for pretty-printing a matrix was sourced from:
@@ -188,7 +188,7 @@ if __name__ == '__main__':
 
     elif len(sys.argv) == 2:
         header = get_header()
-        print_prompt(header, prompt="Input file contained the following columns:")
+        print_prompt(header)
 
     else:
         main()
