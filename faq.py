@@ -55,6 +55,9 @@ def validate_request(data_columns):
     data_columns = set(data_columns)
     user_columns = set(sys.argv[2:])
 
+    if ':all' in user_columns:
+        return data_columns
+
     # Valid columns are in the intersection between the two,
     # invalid columns are in the difference from user to data columns.
     valid, invalid = user_columns.intersection(data_columns), user_columns.difference(data_columns)
@@ -144,7 +147,9 @@ def print_prompt(column_names):
     # Inform the user of how they can proceed.
     print(
         "\nHence, you can now run something like:\n",
-        "\t$ spark-submit faq.py {0} \'{1}\' \'{2}\'\n".format(sys.argv[1], column_names[0], column_names[-1]),
+        "\t$ spark-submit faq.py {0} \'{1}\' \n".format(sys.argv[1], column_names[0]),
+        "or, to run analysis on all columns:\n",
+        "\t$ spark-submit faq.py {0} :all\n".format(sys.argv[1]),
         sep="\n"
     )
 

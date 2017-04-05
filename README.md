@@ -22,4 +22,10 @@ Assuming you have all required dependencies (Spark), this should output a helpfu
   $ spark-submit faq.py <input-file>.csv 'column 1' 'column 2'
   ```
 
+3. With an input CSV and the special keyword `:all`, `faq` will perform the analysis on all columns:
+
+  ```bash
+  $ spark-submit faq.py <input-file>.csv :all
+  ```
+
 
