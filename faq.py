@@ -1,12 +1,17 @@
+from dateutil.parser import parse
+from base_type import base_type_check
 from pyspark.sql import SparkSession
 import sys
-
+from pprint import pprint
 
 # Establish Spark session details
 spark = SparkSession.builder \
     .master("local") \
     .appName("Data Analysis CLI") \
     .getOrCreate()
+
+# TODO do we need str? 1 - p(int) - p(float) - p(datetime) = p(str)
+potential_base_types = [int, float, parse]
 
 
 def main():
@@ -17,8 +22,12 @@ def main():
     # Separate columns that are in :data from those that are not.
     valid_columns = validate_request(data.columns)
 
+    # TODO consider re-writing to rely upon Spark, not Python
+    # TODO so: base_type_check(val) for 
+    # e.g. map on every row,
     # Analyze valid columns only.
-    for column in valid_columns:
+    for index, column in enumerate(valid_columns):
+        print('\n', '-' * 50, "Analyzing column: {} ({}/{})".format(column, index + 1, len(valid_columns)), '-' * 50, sep='\n')
         analyze(column, data)
 
 
@@ -81,7 +90,59 @@ def analyze(column, data):
     :param data: Spark DataFrame containing user-provided CSV values
     """
 
-    pass
+    sample = data.select(column).rdd
+    # sample = data.select(column).sample(withReplacement=False, fraction=0.05, seed=42).rdd
+
+    # Check column against base types.
+    base_type_results = analyze_base_type(sample)
+
+    pprint(base_type_results)
+
+    # Check column against semantic types.
+    # semantic_type_results = analyze_semantic_type(sample)
+
+    # Compute column-wise aggregates.
+    # TODO not sure if semantic_type_results should be utilized.
+    # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
+
+
+def analyze_base_type(data):
+
+    result_dict = dict()
+
+    for base_type in potential_base_types:
+
+        base_type_rdd = data.map(lambda row: base_type_check(row[0], base_type)).cache()
+
+        # (True/False, Size of original list, Size of set, Set of unique values)
+        valid, remaining = (
+            (
+                base_type_rdd.filter(lambda pair: pair[0] is True)
+                             .groupByKey()
+                             .mapValues(list)
+                             .map(lambda pair: (len(pair[1]), set(pair[1])))
+                             .map(lambda pair: (pair[0], len(pair[1]), pair[1]))
+                             .collect()
+            ),
+            (
+                base_type_rdd.filter(lambda pair: pair[0] is False)
+                             .map(lambda pair: (pair[1], -1))
+            )
+        )
+
+        result_dict[base_type] = valid
+        data = remaining
+
+    result_dict[str] = (
+        data.map(lambda row: base_type_check(row[0], str))
+            .groupByKey()
+            .mapValues(list)
+            .map(lambda pair: (len(pair[1]), set(pair[1])))
+            .map(lambda pair: (pair[0], len(pair[1]), pair[1]))
+            .collect()
+    )
+
+    return result_dict
 
 
 def get_header():
@@ -170,17 +231,17 @@ def cli_help():
         "To get a pretty printing of your data's columns, make sure you pass in",
         "the data (with a header line containing column names, separated by commas) like so:",
 
-            "\n\t$ spark-submit faq.py <file>.csv\n",
+        "\n\t$ spark-submit faq.py <file>.csv\n",
 
         "We suggest running the above if you're not sure exactly what column",
         "you'd like to analyze. Once you know what column you're looking to",
         "explore, run the following to actually analyze:",
 
-            "\n\t$ spark-submit faq.py <file>.csv '<column name case-sensitive>'\n",
+        "\n\t$ spark-submit faq.py <file>.csv '<column name case-sensitive>'\n",
 
         "Note: you can also submit multiple columns to be evaluated within one run:",
 
-            "\n\t$ spark-submit faq.py <file>.csv '<column 1>' '<column 2>' ... '<column n>'\n",
+        "\n\t$ spark-submit faq.py <file>.csv '<column 1>' '<column 2>' ... '<column n>'\n",
         sep="\n")
 
     sys.exit(0)
@@ -188,12 +249,16 @@ def cli_help():
 
 if __name__ == '__main__':
 
+    # `$ spark-submit faq.py`
     if len(sys.argv) == 1:
         cli_help()
 
+    # `$ spark-submit faq.py <input_file>.csv`
     elif len(sys.argv) == 2:
         header = get_header()
         print_prompt(header)
 
+    # `$ spark-submit faq.py <input_file>.csv :all`
+    # `$ spark-submit faq.py <input_file>.csv 'column 1' ... 'column n'`
     else:
         main()
