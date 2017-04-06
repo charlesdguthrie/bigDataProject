@@ -23,8 +23,7 @@ def main():
     valid_columns = validate_request(data.columns)
 
     # TODO consider re-writing to rely upon Spark, not Python
-    # TODO so: base_type_check(val) for 
-    # e.g. map on every row,
+    # TODO so: base_type_check(val) for each value in Row(), re-cast RDD to DF, use SparkSQL on entire DF
     # Analyze valid columns only.
     for index, column in enumerate(valid_columns):
         print('\n', '-' * 50, "Analyzing column: {} ({}/{})".format(column, index + 1, len(valid_columns)), '-' * 50, sep='\n')
@@ -36,8 +35,6 @@ def read_data():
 
     :return data: Spark DataFrame representing user-provided CSV
     """
-
-    print("Reading input file...")
 
     data = spark.read.csv(
         path=sys.argv[1],
@@ -90,8 +87,9 @@ def analyze(column, data):
     :param data: Spark DataFrame containing user-provided CSV values
     """
 
-    sample = data.select(column).rdd
-    # sample = data.select(column).sample(withReplacement=False, fraction=0.05, seed=42).rdd
+    # TODO work with entire DataFrame, not just one column or sample
+    # Work with specific column as DataFrame
+    sample = data.select(column).sample(withReplacement=False, fraction=0.05, seed=42).rdd
 
     # Check column against base types.
     base_type_results = analyze_base_type(sample)
@@ -107,6 +105,39 @@ def analyze(column, data):
 
 
 def analyze_base_type(data):
+    """Perform initial base-type check of each column's values.
+
+    This function performs a column-wise evaluation of the base-type distribution.
+    Specifically, for each :base_type in the list of base types, we attempt to
+    cast that column's values to :base_type. Here, the origin data splits:
+    send the valid casts to :valid and the invalid casts (the ones that didn't
+    pass) to :invalid.
+
+    :valid will be stored in the :result_dict dictionary under the 'int' key
+    (the actual function, not the string), so we format it as the following
+    tuple triplet:
+
+        1. Number of non-unique values that were cast to :base_type
+        2. Number of unique values that were cast to :base_type
+        3. The set of values cast to :base_type
+
+    We continue with :remaining as our new origin dataset. Once we've
+    exhausted all :base_type in :potential_base_type, we attribute
+    any remaining values as strings.
+
+    Note: the sum of :result_dict[:base_type] for all :base_type in
+    :potential_base_types should always equal the number of rows evaluated.
+
+    What's nice about this implementation is that we reduce the work done
+    with each potential base type -- by the time we get to str() we've
+    gone through int(), float(), and dateutil.parser.parse().
+
+    :param data: Spark DataFrame containing one column's values.
+    :return result_dict: dictionary of tuples describing our column's
+        valid base types.
+    """
+
+    # Will document later -- this is a temporary implementation anyways (probably).
 
     result_dict = dict()
 
@@ -114,7 +145,6 @@ def analyze_base_type(data):
 
         base_type_rdd = data.map(lambda row: base_type_check(row[0], base_type)).cache()
 
-        # (True/False, Size of original list, Size of set, Set of unique values)
         valid, remaining = (
             (
                 base_type_rdd.filter(lambda pair: pair[0] is True)
