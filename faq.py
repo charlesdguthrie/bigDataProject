@@ -14,8 +14,6 @@ spark = SparkSession.builder \
 # Establish base function types.
 potential_base_types = [base_type_int, base_type_float, base_type_datetime]
 
-timed = ':timeit' in sys.argv
-
 
 def main():
 
