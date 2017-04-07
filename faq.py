@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession
 import sys
 from pprint import pprint
 from time import time
+from random import sample
 
 
 # Establish Spark session details.
@@ -98,7 +99,7 @@ def analyze(column, data):
     # Check column against base types.
     base_type_results = analyze_base_type(column)
 
-    pprint(base_type_results)
+    report_base_type(base_type_results)
 
     # Check column against semantic types.
     # semantic_type_results = analyze_semantic_type(column)
@@ -171,7 +172,7 @@ def analyze_base_type(data):
                 base_type_rdd.filter(lambda pair: pair[0] is True)
                              .groupByKey()
                              .mapValues(list)
-                             .map(lambda pair: (len(pair[1]), len(set(pair[1])), set(pair[1]) if len(set(pair[1])) < 100 else {}))
+                             .map(lambda pair: (len(pair[1]), len(set(pair[1])), sample(set(pair[1]), min(100, len(set(pair[1]))))))
                              .collect()
             ),
             (
@@ -191,7 +192,6 @@ def analyze_base_type(data):
         # Assign our new dataset to our :remaining.
         data = remaining
 
-
     # When we're done, we're left with (val, 0) tuples that weren't able to be cast
     # as any of our defined base type functions. Hence, we default their casting to
     # string types since all types can be represented as strings. We don't do anything
@@ -200,11 +200,14 @@ def analyze_base_type(data):
         data.map(lambda row: (True, row[0]))
             .groupByKey()
             .mapValues(list)
-            .map(lambda pair: (len(pair[1]), len(set(pair[1])), set(pair[1]) if len(set(pair[1])) < 100 else {}))
+            .map(lambda pair: (len(pair[1]), len(set(pair[1])), sample(set(pair[1]), min(100,len(set(pair[1]))))))
             .collect()
     )
 
     return result_dict
+
+
+def report_base_type
 
 
 def get_header():
