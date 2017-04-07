@@ -1,29 +1,67 @@
+from time import strptime
+from functools import partial
 
-def base_type_check(val, cast):
-    """All-in-one function to determine valid value castings.
 
-    This function takes a value :val and a casting function :cast
-    and attempts to cast :val as a value of type :cast. We do this
-    to determine potential base type values.
+# TODO how have we resolved the issue with lat/long being ints?
+def base_type_int(val):
+    """Determine whether a value's base type is integer.
 
-    :param val: any value of any type
-    :param cast: cast function to be applied to :val
-    :return (Bool, val): tuple denoting whether the value was correctly
-        able to be cast to type :cast and the original value
+    :param val: value contained within our data
+
+    :return:
+        (Bool, val) tuple containing whether the value
+        was correctly cast (or not) and the original value.
     """
     try:
-        attempt = cast(val)
-
-        # Handle float case: 47.3 != int(47.3).
-        if cast is float:
-
-            if val is attempt or val == attempt:
-                return (True, val)
-            else:
-                return (False, val)
-
-        else:
-            return (True, val)
+        cast = int(val)
+        return (True, val)
 
     except:
         return (False, val)
+
+
+def base_type_float(val):
+    """Determine whether a value's base type is float.
+
+    :param val: value contained within our data
+
+    :return:
+        (Bool, val) tuple containing whether the value
+        was correctly cast (or not) and the original value.
+    """
+    try:
+        cast = float(val)
+        return (True, val)
+
+    except:
+        return (False, val)
+
+
+# TODO should datetime be a base type, or a variant of string?
+def _base_type_datetime(val, fmt):
+    """Determine whether a value's base type is datetime.
+
+    :param val: value contained within our data
+
+    :return:
+        (Bool, val) tuple containing whether the value
+        was correctly cast (or not) and the original value.
+    """
+
+    if val is None:
+        return (False, val)
+
+    try:
+        _ = strptime(val, fmt)
+        return (True, val)
+
+    except:
+        return (False, val)
+
+
+# Use a function partial to avoid passing in the date format
+# each time we call _base_type_datetime. This is a bit nonflexible
+# in terms of the datetime formats we can parse, but works for our
+# dataset just fine. A more robust solution would be to use
+# dateutil.parser.parse(), but it's very slow.
+base_type_datetime = partial(_base_type_datetime, fmt='%m/%d/%Y %I:%M:%S %p')
