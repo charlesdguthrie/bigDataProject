@@ -17,6 +17,7 @@ potential_base_types = [base_type_int, base_type_float, base_type_datetime]
 
 def main():
 
+    # Obtain measure of total time elapsed.
     global_start = time()
 
     # Read input data.
@@ -25,15 +26,16 @@ def main():
     # Separate columns that are in :data from those that are not.
     valid_columns = validate_request(data.columns)
 
-    # TODO consider re-writing to rely upon Spark, not Python
-    # TODO remove timing stuff for final submission
-    # Analyze valid columns only.
+    # TODO consider re-writing to rely upon Spark, not Python.
+    # TODO remove timing stuff for final submission.
+    # Analyze valid columns only, printing out time diagnostics along the way.
     for index, column in enumerate(valid_columns):
         iter_start = time()
         print('-' * 50, "Analyzing column: {} ({}/{})".format(column, index + 1, len(valid_columns)), '-' * 50, sep='\n')
         analyze(column, data)
         print('\nTook {:.1f} seconds'.format(time() - iter_start))
 
+    # Obtain measure of total time elapsed.
     print("Total time: {:.1f} seconds".format(time() - global_start))
 
 
@@ -190,14 +192,12 @@ def analyze_base_type(data):
         data = remaining
 
 
-    # TODO maybe consider doing a random sample to determine whether a column is a string?
-
     # When we're done, we're left with (val, 0) tuples that weren't able to be cast
     # as any of our defined base type functions. Hence, we default their casting to
     # string types since all types can be represented as strings. We don't do anything
     # new -- it's the same algorithm as we use for :valid.
     result_dict[str] = (
-        data.map(lambda row: (str, row[0]))
+        data.map(lambda row: (True, row[0]))
             .groupByKey()
             .mapValues(list)
             .map(lambda pair: (len(pair[1]), len(set(pair[1])), set(pair[1]) if len(set(pair[1])) < 100 else {}))

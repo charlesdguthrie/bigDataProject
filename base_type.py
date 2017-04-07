@@ -37,7 +37,6 @@ def base_type_float(val):
         return (False, val)
 
 
-# TODO should datetime be a base type, or a variant of string?
 def _base_type_datetime(val, fmt):
     """Determine whether a value's base type is datetime.
 
