@@ -28,4 +28,33 @@ Assuming you have all required dependencies (Spark), this should output a helpfu
   $ spark-submit faq.py <input-file>.csv :all
   ```
 
+# Data Provenance
 
+Our data was sourced through the NYC OpenData portal. The 311 data is segmented into two datasets with identical fields covering the years of (1) 2009 and (2) 2010 to the present
+
+We took the following steps to generate `311-all.csv`, which is the aggregate dataset:
+
+1. Validate that there is no difference in features between the dataset.
+
+2. Copy the 2009 dataset in its entirety to a new file `311-all.csv`.
+
+	```bash
+	$ cp 311-2009.csv 311-all.csv
+	```
+3. Append the 2010 and onwards data (excluding the header) to our new `311-all.csv`
+
+	```bash
+	# Start tail 2 lines after 0, so exclude line 1 (header)
+	$ tail +2 311-2010_now.csv >> 311-all.csv
+	```
+
+Afterwards, we have a new, aggregated `311-all.csv`. Checking its size and line count:
+
+```bash
+$ ls -lh 311-all.csv
+-rw-r--r--  1 danny  staff   7.3G Apr  3 22:02 311-all.csv
+$ wc -l 311-all.csv
+15358922 311-all.csv
+```
+
+Hence, our dataset is around 7.3 GB and contains 15,358,921 observations.
