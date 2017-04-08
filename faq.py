@@ -14,6 +14,7 @@ spark = SparkSession.builder \
 
 # Establish base function types.
 potential_base_types = [base_type_int, base_type_float, base_type_datetime]
+potential_base_type_names = ['int', 'float', 'datetime', 'string']
 
 
 def main():
@@ -22,10 +23,12 @@ def main():
     global_start = time()
 
     # Read input data.
-    data = read_data()
+    data, rows = read_data()
 
     # Separate columns that are in :data from those that are not.
     valid_columns = validate_request(data.columns)
+
+    row_description(rows)
 
     # TODO consider re-writing to rely upon Spark, not Python.
     # TODO remove timing stuff for final submission.
@@ -33,8 +36,8 @@ def main():
     for index, column in enumerate(valid_columns):
         iter_start = time()
         print('-' * 50, "Analyzing column: {} ({}/{})".format(column, index + 1, len(valid_columns)), '-' * 50, sep='\n')
-        analyze(column, data)
-        print('\nTook {:.1f} seconds'.format(time() - iter_start))
+        analyze(column, data, rows)
+        print('\nTook {:.1f} seconds.\n'.format(time() - iter_start))
 
     # Obtain measure of total time elapsed.
     print("Total time: {:.1f} seconds".format(time() - global_start))
@@ -47,7 +50,7 @@ def read_data():
     """
 
     data = spark.read.csv(path=sys.argv[1], header=True)
-    return data
+    return data, data.count()
 
 
 # TODO are column orders changing? What's going on?
@@ -82,14 +85,25 @@ def validate_request(data_columns):
     return valid
 
 
+def row_description(nrow):
+    line = 'Distribution results based on {:,} rows'.format(nrow)
+    print(
+        '+', '-' * (len(line) + 2), '+\n',
+        '| ', line, ' |\n',
+        '+', '-' * (len(line) + 2), '+\n',
+        sep=''
+    )
+
+
 # TODO semantic type checking -- Charlie/Dave
 # TODO NULL/Invalid values (Problem Type 1) -- Charlie
 # TODO Valid/Outlier values (Problem Type 2) -- Danny
-def analyze(column, data):
+def analyze(column, data, rows):
     """Perform common analyses for a given column in our DataFrame.
 
     :param column: string representing column within :data
     :param data: Spark DataFrame containing user-provided CSV values
+    :param rows: number of rows contained in :data
     """
 
     # TODO consider Parquet columnar format?
@@ -99,7 +113,7 @@ def analyze(column, data):
     # Check column against base types.
     base_type_results = analyze_base_type(column)
 
-    report_base_type(base_type_results)
+    report_base_type(base_type_results, rows)
 
     # Check column against semantic types.
     # semantic_type_results = analyze_semantic_type(column)
@@ -207,7 +221,34 @@ def analyze_base_type(data):
     return result_dict
 
 
-def report_base_type
+def report_base_type(base_type_dict, nrows):
+
+    look_aside = enumerate(potential_base_types + [str])
+    lines = []
+
+    for index, base_type in look_aside:
+
+        try:
+            amount = base_type_dict[base_type][0][0]
+            sample_values = base_type_dict[base_type][0][2]
+
+        except IndexError:
+            amount = 0
+            sample_values = []
+
+        lines.append([potential_base_type_names[index], amount, (amount / nrows) * 100, sample_values])
+
+    width = 5 if 100.0 in [line[2] for line in lines] else 4
+
+    for line in lines:
+        print('|- {0:8s} => {1:10,d} = {2:>0{width}.1f}%'.format(line[0], line[1], line[2], width=width))
+
+
+def mod_len(val):
+    try:
+        return len(val)
+    except:
+        return 0
 
 
 def get_header():
