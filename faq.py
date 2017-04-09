@@ -42,6 +42,7 @@ def main():
             '-' * 50,
             sep='\n'
         )
+
         analyze(column, data, rows)
 
         print('\nTook {:.1f} seconds.\n'.format(time() - iter_start))
@@ -180,29 +181,56 @@ def analyze_base_type(data):
 
 
 def report_base_type(base_type_dict, nrows):
+    """Reporter function for current column's base type.
 
+    :param base_type_dict: dictionary mapping {function : (amnt, uniq.amnt, vals)}.
+    :param nrows: used for percentage reporting; total number of observations in this data.
+    """
+
+    # Iteration containers for building our lines and storing values.
     look_aside = enumerate(potential_base_types + [str])
     lines, values = [], []
 
+    # For each base type in our complete list of base types
     for index, base_type in look_aside:
 
         try:
+            # Attempt to isolate the raw number of values in current column
+            # that were cast to :base_type.
             amount = base_type_dict[base_type][0][0]
+
+            # Attempt to isolate the sample set of values that contain values
+            # that were cast to :base_type.
             sample_values = base_type_dict[base_type][0][2]
 
         except IndexError:
+            # If either don't exist, set both to representative 'empty' values.
             amount = 0
             sample_values = []
 
+        # :lines will store what to print on each line, so store:
+        #   1) the string-friendly representation of our function
+        #   2) the raw number of casted values in our column
+        #   3) the percentage of values in the entire column that were cast to this type
         lines.append([potential_base_type_names[index], amount, (amount / nrows) * 100])
+
+        # :values will store sample values for each type, which we will pretty-print.
         values.append(sample_values)
 
+    # We define our percentage width now -- this sets :width to 5 if any of the raw counts
+    # represented by :amount is equal to nrows (that is, if any type for this column was
+    # determined to be the type for the entire column) and otherwise sets :width to 4.
     width = 5 if nrows in [line[1] for line in lines] else 4
 
+    # For each line representing a base function type and the set of values
+    # representing that base type, print that frequency distribution to the user.
     for (line, line_values) in zip(lines, values):
+
+        # Print top-level line denoting (1) type, (2) raw count, (3) proportion.
         print('|- {0:8s} => {1:10,d} = {2:>0{width}.1f}%'.format(line[0], line[1], line[2], width=width))
 
-        if len(line_values) != 0:
+        # If we have any sample values to present, pretty-print them.
+        if line[1] > 0:
             pretty_print_matrix(line_values, indent='\t', per_row=2)
 
 

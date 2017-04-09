@@ -59,7 +59,7 @@ def _base_type_datetime(val, fmt):
 
 
 # Use a function partial to avoid passing in the date format
-# each time we call _base_type_datetime. This is a bit nonflexible
+# each time we call _base_type_datetime. This is a bit inflexible
 # in terms of the datetime formats we can parse, but works for our
 # dataset just fine. A more robust solution would be to use
 # dateutil.parser.parse(), but it's very slow.

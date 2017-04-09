@@ -92,6 +92,17 @@ def row_description(row_count):
 
 
 def pretty_print_matrix(values_list, indent='', per_row=2):
+    """Pretty print a list of values.
+
+    The following code for pretty-printing a matrix was sourced from:
+        http://stackoverflow.com/questions/13214809/pretty-print-2d-python-list
+    We utilize this code to better display the available columns to the user,
+    and does not influence our project's findings or hypotheses.
+
+    :param values_list: one-dimensional list of values to be printed (nicely)
+    :param indent: indent to be applied to each line -- usually '\t', but defaults ''
+    :param per_row: requested number of values per row
+    """
 
     # Convert our list to a matrix (list of lists) to work properly.
     matrix = [values_list[i:i + per_row] for i in range(0, len(values_list), per_row)]
@@ -104,8 +115,21 @@ def pretty_print_matrix(values_list, indent='', per_row=2):
 
 
 def safe_len(val):
+    """Perform a safe evaluation of a value's length.
+
+    We define :safe_len so that :pretty_print_matrix doesn't get tripped-up
+    when it encounters a `None` value during map(len, col). :safe_len is a thin
+    wrapper around the builtin :len that has any exceptions -- namely, len(None) --
+    return 4 (len(str(None))) instead of raising a TypeError.
+
+    :param val: value whose length we'd like to compute
+    :return: the length of the value
+    """
+
     try:
         return len(val)
+
+    # Only applicable for `None` type, so return len(str(None)) (= 4).
     except:
         return 4
 
