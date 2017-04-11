@@ -1,3 +1,4 @@
+from __future__ import print_function
 from base_type import base_type_int, base_type_float, base_type_datetime
 from pyspark.sql import SparkSession
 import sys
