@@ -1,4 +1,6 @@
 from sys import exit
+from io import StringIO
+from csv import writer
 
 
 def cli_help():
@@ -194,3 +196,21 @@ def get_header(file):
         print("Error: you do not have read-permission on file `{}`. Please try again.".format(file))
         print("Exiting...")
         exit(0)
+
+
+def list_to_csv_str(x):
+    """Given a list of strings, returns a properly-csv-formatted string.
+
+    NOTE: we are using this code from StackOverflow provided by user `galenlong`:
+        http://stackoverflow.com/questions/31898964/how-to-write-the-resulting-rdd-to-a-csv-file-in-spark-python
+
+    We utilize this code to better output our results to the user,
+    and does not influence our project's findings or hypotheses.
+    """
+
+    # Build our output string and write row to output string.
+    output = StringIO("")
+    writer(output).writerow(x)
+
+    # Return string representation of row and remove trailing newline.
+    return output.getvalue().strip()

@@ -27,6 +27,8 @@ base_type_names = {
 
 def main():
 
+    global_start = time()
+
     # Read input data.
     data = read_data(spark=spark, file=sys.argv[1])
 
@@ -39,12 +41,21 @@ def main():
         analyze(column, data)
         print('\nColumn `{}` took {:.1f} seconds.\n'.format(column, time() - iter_start))
 
+    print('\nTotal runtime: {} seconds.'.format(time() - global_start))
+
 
 # TODO semantic type checking -- Charlie/Dave
 # TODO NULL/Invalid values (Problem Type 1) -- Charlie
 # TODO Valid/Outlier values (Problem Type 2) -- Danny
 def analyze(column_name, data):
     """Perform common analyses for a given column in our DataFrame.
+
+    This function encompasses the entire analysis performed on ONE column,
+    including:
+
+        1. base type evaluation
+        2. semantic type evaluation
+        3. valid/outlier value evaluation
 
     :param column_name: string representing column within :data
     :param data: Spark DataFrame containing user-provided CSV values
@@ -55,19 +66,16 @@ def analyze(column_name, data):
 
     # Check column against base types and report column base type evaluation.
     base_type_results = analyze_base_type(column_data)
-    # dominant_base_type = get_dominant_base_type(base_type_results)
-
-    # merged_rdd = join_results(base_type_results)
+    dominant_base_type = get_dominant_base_type(base_type_results)
 
     # Check column against semantic types.
-    # semantic_type_results = analyze_semantic_type(column)
-
-    # report_semantic_type(semantic_type_results, rows)
+    # semantic_type_results = analyze_semantic_type(base_type_results, dominant_base_type)
 
     # Compute column-wise aggregates.
     # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
 
-    # master_df = join_results(base_type_results)
+    # Needs more!
+    # merged_rdd = join_results(base_type_results)
 
 
 def analyze_base_type(data):
@@ -151,34 +159,59 @@ def analyze_base_type(data):
     return result_dict
 
 
-def join_results(data_dictionary):
+def get_dominant_base_type(data_dictionary):
+    """Obtain a simple representation of our column's dominant base type.
 
+    :param data_dictionary: results dictionary returned by :analyze_base_type().
+    :return dominant_type: this column's most prevalent base type.
+    """
+
+    # Define our key functions.
     all_functions = potential_base_types + [str]
+
+    # Initialize our results container with defaults.
+    dominant_type = {'type': None, 'length': 0}
+
+    for base_type in all_functions:
+
+        # Get the length of the number of values in column that
+        # were cast as type :base_type().
+        number_of_coercions = len(data_dictionary[base_type])
+
+        # If that number is greater than our current max, store a nice
+        # representation of the function name (representing type) and
+        # a count of the number of values that were cast as such.
+        if number_of_coercions > dominant_type['length']:
+            dominant_type['type'] = base_type_names[base_type]
+            dominant_type['length'] = number_of_coercions
+
+    # Return our two-entry dictionary containing the most frequent base type.
+    return dominant_type['type']
+
+
+def join_results(data_dictionary):
+    """Coalesce our fragmented RDD into one master RDD.
+
+    :param data_dictionary: results dictionary returned by :analyze_base_type().
+    :return master_rdd: Spark RDD containing all rows from dictionary.
+    """
+
+    # Define our list of key-functions.
+    all_functions = potential_base_types + [str]
+
+    # Initialize an empty RDD -- equivalent to creating an empty list.
     master_rdd = sc.emptyRDD()
 
     for base_type in all_functions:
+
+        # Convert list of tuples into Spark RDD, then append that
+        # RDD to our :master_rdd. This builds an RDD containing all of
+        # the original column.
         rdd = sc.parallelize(data_dictionary[base_type])
         master_rdd = master_rdd.union(rdd)
 
+    # Return our joined, complete column of tuples.
     return master_rdd
-
-
-def list_to_csv_str(x):
-    """Given a list of strings, returns a properly-csv-formatted string.
-
-    NOTE: we are using this code from StackOverflow provided by user `galenlong`:
-        http://stackoverflow.com/questions/31898964/how-to-write-the-resulting-rdd-to-a-csv-file-in-spark-python
-
-    We utilize this code to better output our results to the user,
-    and does not influence our project's findings or hypotheses.
-    """
-
-    # Build our output string and write row to output string.
-    output = io.StringIO("")
-    csv.writer(output).writerow(x)
-
-    # Return string representation of row and remove trailing newline.
-    return output.getvalue().strip()
 
 
 if __name__ == '__main__':
