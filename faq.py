@@ -74,7 +74,7 @@ def analyze(column_name, data):
     semantic_type_results = analyze_semantic_type(base_type_rdd)
 
     # Compute column-wise aggregates.
-    aggregate_results = analyze_aggregate(semantic_type_results)
+    # aggregate_results = analyze_aggregate(semantic_type_results)
 
     # Needs more!
     # merged_rdd = join_results(base_type_results)
@@ -158,7 +158,6 @@ def analyze_base_type(data):
     result_rdd = result_rdd.union(
         data.map(lambda pair: (pair[0], base_type__names[str]))
     )
-
     return result_rdd
 
 
@@ -177,22 +176,24 @@ def analyze_semantic_type(base_type_rdd):
     # Mark all non-:dominant_base_type values as semantic type: unknown.
     unknown, remaining = (
 
-        base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
-                     .map(lambda row: (row, 'unknown', 'n/a')),
+        # For values where the base type is not the column's dominant base type,
+        # their semantic type is unknown and validity is n/a. Finally, flatten the tuple
+        # from ((val, type), (sem_type, valid)) -> (val, type, sem_type, valid).
+        base_type_rdd.filter(lambda row: row[1] != dominant_base_type_name)
+                     .map(lambda row: (row, ('unknown', 'n/a')))
+                     .map(lambda row: tuple(chain(*row))),
 
-        base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
+        # For values where the base type is the column's dominant base type,
+        # evaluate their semantic type and validity. Finally, flatten the tuple
+        # from ((val, type), (sem_type, valid)) -> (val, type, sem_type, valid).
+        base_type_rdd.filter(lambda row: row[1] == dominant_base_type_name)
                      .map(lambda row: (row, semantic_type_pipeline(dominant_base_type_name, row[0])))
+                     .map(lambda row: tuple(chain(*row)))
     )
 
     # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
     semantic_type_rdd = unknown.union(remaining)
     return semantic_type_rdd
-
-
-def analyze_aggregate(semantic_type_rdd):
-
-
-    semantic_type_rdd
 
 
 if __name__ == '__main__':
