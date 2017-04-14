@@ -20,8 +20,7 @@ def _check_date_validity(value, mindate, maxdate, fmt):
         maxdate: maximum date allowed in the data
         fmt: string format for date
     returns:
-        tuple ('date',validity), where validity is
-            one of 'null','valid','invalid'
+        tuple ('date','valid'),('date','invalid'), or (None,None)
     '''
     
     #first check if it is a datetime, using base_type_results
@@ -32,12 +31,9 @@ def _check_date_validity(value, mindate, maxdate, fmt):
         
     #next, check if value is between 1/1/2009 and 1/1/2017
     if (check_date>=mindate) and (check_date<=maxdate):
-        validity='valid'
+        return('date','valid')
     else:
-        validity='invalid'
-    
-    #validity = 'valid','invalid','null'
-    return ('date',validity)
+        return('date','valid')
 
 check_date_validity = partial(_check_date_validity, \
                               mindate = datetime(2009,1,1,0,0),\
