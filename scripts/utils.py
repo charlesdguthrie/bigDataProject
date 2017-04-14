@@ -1,16 +1,16 @@
 from sys import exit
 from io import StringIO
 from csv import writer
-from .semantic_type_int import *
-from .semantic_type_float import *
-from .semantic_type_date import *
-from .semantic_type_string import *
+from .semantic_type_int import int_checks
+from .semantic_type_float import float_checks
+from .semantic_type_date import date_checks
+from .semantic_type_string import string_checks
 
 semantic_type_functions = {
-    'int': semantic_type_int_functions,
-    'float': semantic_type_float_functions,
-    'datetime': semantic_type_datetime_functions,
-    'string': semantic_type_string_functions
+    'int': int_checks,
+    'float': float_checks,
+    'datetime': date_checks,
+    'string': string_checks
 }
 
 

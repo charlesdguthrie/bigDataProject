@@ -13,7 +13,7 @@ def check_borough_validity(value):
         taxi co. borough
     '''
     valid_boroughs = ['BRONX','BROOKLYN','MANHATTAN','QUEENS','STATEN ISLAND']
-    if upper(value) in valid_boroughs:
+    if str.upper(value) in valid_boroughs:
         return ('borough','valid')
     else:
         return (None,None)
