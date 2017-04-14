@@ -1,10 +1,10 @@
-from __future__ import print_function
 from base_type import base_type_int, base_type_float, base_type_datetime
 from utils import *
 from pyspark.sql import SparkSession
 from pyspark.context import SparkContext
 import sys
 from time import time
+from itertools import chain
 from pprint import pprint
 
 
@@ -182,32 +182,12 @@ def analyze_semantic_type(base_type_rdd):
 
         # TODO figure out semantic type pipeline function architecture.
         base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
-                     .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type_name)(row[0])))
+                     .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type_name, row[0])))
     )
 
     # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
     semantic_type_rdd = unknown.union(remaining)
     return semantic_type_rdd
-
-
-def get_dominant_base_type(rdd):
-    """Helper function to determine most prevalent value in key-value RDD's.
-
-    :param rdd: RDD of (val, cast) tuples after passing through :analyze_base_type().
-    :return top_type: string representation of RDD's most common base type.
-    """
-
-    # Use Spark RDD methods to group each cast type and reduce to get counts.
-    type_to_count = (
-        rdd.map(lambda pair: (pair[1], 1))
-           .reduceByKey(lambda a, b: a + b)
-           .collect()
-    )
-
-    # Python methods to quickly sort a list of (max) length 4.
-    # Extract and return type that is prevalent in column.
-    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)[0][0]
-    return top_type
 
 
 if __name__ == '__main__':
