@@ -3,16 +3,16 @@ from utils import *
 from pyspark.sql import SparkSession
 from pyspark.context import SparkContext
 import sys
-import csv
-import io
 from time import time
+from pprint import pprint
 
 
 # Establish Spark session and context.
 spark = SparkSession.builder \
-    .master("local") \
-    .appName("311 Analysis") \
-    .getOrCreate()
+                    .master("local") \
+                    .appName("311 Analysis") \
+                    .getOrCreate()
+
 sc = SparkContext.getOrCreate()
 
 # Establish base function types and names.
@@ -41,7 +41,7 @@ def main():
         analyze(column, data)
         print('\nColumn `{}` took {:.1f} seconds.\n'.format(column, time() - iter_start))
 
-    print('\nTotal runtime: {} seconds.'.format(time() - global_start))
+    print('Total runtime: {} seconds.'.format(time() - global_start))
 
 
 # TODO semantic type checking -- Charlie/Dave
@@ -65,11 +65,11 @@ def analyze(column_name, data):
     column_data = data.select(column_name).rdd
 
     # Check column against base types and report column base type evaluation.
-    base_type_results = analyze_base_type(column_data)
-    dominant_base_type = get_dominant_base_type(base_type_results)
+    # base_type_dict, base_type_rdd = analyze_base_type(column_data)
+    base_type_rdd = analyze_base_type(column_data)
 
     # Check column against semantic types.
-    # semantic_type_results = analyze_semantic_type(base_type_results, dominant_base_type)
+    semantic_type_results = analyze_semantic_type(base_type_rdd)
 
     # Compute column-wise aggregates.
     # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
@@ -112,7 +112,7 @@ def analyze_base_type(data):
     """
 
     # Initialize results container.
-    result_dict = dict()
+    result_rdd = sc.emptyRDD()
 
     # For each function in our list of potential base type check functions
     for base_type_function in potential_base_types:
@@ -130,8 +130,7 @@ def analyze_base_type(data):
                 # From rows of (True, val) tuples, extract the :val,
                 # re-map to (val, <type val>) tuples.
                 base_type_rdd.filter(lambda pair: pair[0] is True)
-                             .map(lambda pair: (pair[1], base_type_names[base_type_function]))
-                             .collect()
+                             .map(lambda pair: (pair[1], base_type_function))
             ),
             (
                 # From rows of (False, val) tuples, we need to re-cycle them through
@@ -144,8 +143,8 @@ def analyze_base_type(data):
             )
         )
 
-        # Store the 3-length tuple into :result_dict under the key :base_type_function.
-        result_dict[base_type_function] = valid
+        # Append the valid-cast tuples to our container RDD :result_rdd.
+        result_rdd = result_rdd.union(valid)
 
         # Assign our origin dataset to our :remaining RDD.
         data = remaining
@@ -154,64 +153,51 @@ def analyze_base_type(data):
     # as any of our defined base type functions. Hence, we default their casting to
     # string types since all types can be represented as strings. We don't do anything
     # new -- it's the same algorithm as we use for :valid.
-    result_dict[str] = data.map(lambda pair: (pair[0], base_type_names[str])).collect()
+    result_rdd = result_rdd.union(
+        data.map(lambda pair: (pair[0], str))
+    )
 
-    return result_dict
+    return result_rdd
 
 
-def get_dominant_base_type(data_dictionary):
-    """Obtain a simple representation of our column's dominant base type.
+def analyze_semantic_type(base_type_rdd):
+    """Perform intermediary analysis on column's semantic type.
 
-    :param data_dictionary: results dictionary returned by :analyze_base_type().
-    :return dominant_type: this column's most prevalent base type.
+    :param base_type_rdd: RDD containing (val, cast) tuples as a result
+        of initial pass through :analyze_base_type().
     """
 
-    # Define our key functions.
-    all_functions = potential_base_types + [str]
+    # Determine column's most prevalent base type.
+    dominant_base_type = get_dominant_base_type(base_type_rdd)
 
-    # Initialize our results container with defaults.
-    dominant_type = {'type': None, 'length': 0}
+    # Mark all non-:dominant_base_type values as semantic type: unknown.
+    # TODO
 
-    for base_type in all_functions:
+    # Continue analysis on semantic types matching :dominant_base_type.
+    # TODO
 
-        # Get the length of the number of values in column that
-        # were cast as type :base_type().
-        number_of_coercions = len(data_dictionary[base_type])
-
-        # If that number is greater than our current max, store a nice
-        # representation of the function name (representing type) and
-        # a count of the number of values that were cast as such.
-        if number_of_coercions > dominant_type['length']:
-            dominant_type['type'] = base_type_names[base_type]
-            dominant_type['length'] = number_of_coercions
-
-    # Return our two-entry dictionary containing the most frequent base type.
-    return dominant_type['type']
+    pass
 
 
-def join_results(data_dictionary):
-    """Coalesce our fragmented RDD into one master RDD.
+def get_dominant_base_type(rdd):
+    """Helper function to determine most prevalent value in key-value RDD's.
 
-    :param data_dictionary: results dictionary returned by :analyze_base_type().
-    :return master_rdd: Spark RDD containing all rows from dictionary.
+    :param rdd: RDD of (val, cast) tuples after passing through :analyze_base_type().
+    :return top_type: string representation of RDD's most common base type.
     """
 
-    # Define our list of key-functions.
-    all_functions = potential_base_types + [str]
+    # Use Spark RDD methods to group each cast type and reduce to get counts.
+    type_to_count = (
+        rdd.map(lambda pair: (pair[1], 1))
+           .reduceByKey(lambda a, b: a + b)
+           .collect()
+    )
 
-    # Initialize an empty RDD -- equivalent to creating an empty list.
-    master_rdd = sc.emptyRDD()
+    # Python methods to quickly sort a list of (max) length 4.
+    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)
 
-    for base_type in all_functions:
-
-        # Convert list of tuples into Spark RDD, then append that
-        # RDD to our :master_rdd. This builds an RDD containing all of
-        # the original column.
-        rdd = sc.parallelize(data_dictionary[base_type])
-        master_rdd = master_rdd.union(rdd)
-
-    # Return our joined, complete column of tuples.
-    return master_rdd
+    # Extract and return second element of the first tuple element.
+    return type_to_count[0][1]
 
 
 if __name__ == '__main__':
