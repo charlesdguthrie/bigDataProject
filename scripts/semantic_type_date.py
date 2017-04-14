@@ -28,7 +28,7 @@ def _check_date_validity(value, mindate, maxdate, fmt):
     try:
         check_date = datetime.strptime(value,fmt)
     except:
-        validity='null'
+        return (None,None)
         
     #next, check if value is between 1/1/2009 and 1/1/2017
     if (check_date>=mindate) and (check_date<=maxdate):
