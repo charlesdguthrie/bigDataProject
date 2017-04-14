@@ -263,10 +263,10 @@ def semantic_type_pipeline(base_type_name, value):
     global semantic_type_functions
 
     # Initialize both the list of functions to evaluate and our default results.
-    semantic_type_functions = semantic_type_functions[base_type_name]
+    semantic_type_functions_list = semantic_type_functions[base_type_name]
     semantic_type, is_valid = (None, None)
 
-    for st_function in semantic_type_functions:
+    for st_function in semantic_type_functions_list:
 
         # Apply each function onto our value, capturing output semantic type and validity.
         semantic_type, is_valid = st_function(value)

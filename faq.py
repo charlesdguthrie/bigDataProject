@@ -74,7 +74,7 @@ def analyze(column_name, data):
     semantic_type_results = analyze_semantic_type(base_type_rdd)
 
     # Compute column-wise aggregates.
-    # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
+    aggregate_results = analyze_aggregate(semantic_type_results)
 
     # Needs more!
     # merged_rdd = join_results(base_type_results)
@@ -187,6 +187,12 @@ def analyze_semantic_type(base_type_rdd):
     # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
     semantic_type_rdd = unknown.union(remaining)
     return semantic_type_rdd
+
+
+def analyze_aggregate(semantic_type_rdd):
+
+
+    semantic_type_rdd
 
 
 if __name__ == '__main__':
