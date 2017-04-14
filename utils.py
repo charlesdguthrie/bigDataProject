@@ -38,7 +38,7 @@ def read_data(spark, file):
     """
 
     data = spark.read.csv(path=file, header=True)
-    return data, data.count()
+    return data
 
 
 def validate_request(user_columns, data_columns):

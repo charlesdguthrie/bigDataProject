@@ -1,85 +1,73 @@
 from base_type import base_type_int, base_type_float, base_type_datetime
 from utils import *
 from pyspark.sql import SparkSession
+from pyspark.context import SparkContext
 import sys
+import csv
+import io
 from time import time
-from random import sample
 
 
-# Establish Spark session details.
+# Establish Spark session and context.
 spark = SparkSession.builder \
     .master("local") \
     .appName("311 Analysis") \
     .getOrCreate()
+sc = SparkContext.getOrCreate()
 
-# Establish base function types.
+# Establish base function types and names.
 potential_base_types = [base_type_int, base_type_float, base_type_datetime]
-potential_base_type_names = ['int', 'float', 'datetime', 'string']
+base_type_names = {
+    base_type_int: 'int',
+    base_type_float: 'float',
+    base_type_datetime: 'datetime',
+    str: 'string'
+}
 
 
 def main():
 
-    # Obtain measure of total time elapsed.
-    global_start = time()
-
     # Read input data.
-    data, rows = read_data(spark=spark, file=sys.argv[1])
+    data = read_data(spark=spark, file=sys.argv[1])
 
     # Separate columns that are in :data from those that are not.
     valid_columns = validate_request(user_columns=sys.argv[2:], data_columns=data.columns)
 
-    # Pretty-print information detailing number of rows for reference.
-    row_description(row_count=rows)
-
     # Analyze valid columns only, printing out time diagnostics along the way.
     for index, column in enumerate(valid_columns):
-
         iter_start = time()
-
-        print(
-            '-' * 50,
-            "Analyzing column: {} ({}/{})".format(column, index + 1, len(valid_columns)),
-            '-' * 50,
-            sep='\n'
-        )
-
-        analyze(column, data, rows)
-
-        print('\nTook {:.1f} seconds.\n'.format(time() - iter_start))
-
-    # Obtain measure of total time elapsed.
-    print("Total time: {:.1f} seconds".format(time() - global_start))
+        analyze(column, data)
+        print('\nColumn `{}` took {:.1f} seconds.\n'.format(column, time() - iter_start))
 
 
 # TODO semantic type checking -- Charlie/Dave
 # TODO NULL/Invalid values (Problem Type 1) -- Charlie
 # TODO Valid/Outlier values (Problem Type 2) -- Danny
-def analyze(column, data, rows):
+def analyze(column_name, data):
     """Perform common analyses for a given column in our DataFrame.
 
-    :param column: string representing column within :data
+    :param column_name: string representing column within :data
     :param data: Spark DataFrame containing user-provided CSV values
-    :param rows: number of rows contained in :data
     """
 
-    # TODO consider Parquet columnar format?
     # Work with specific column as RDD.
-    column = data.select(column).rdd
+    column_data = data.select(column_name).rdd
 
-    # Check column against base types.
-    base_type_results = analyze_base_type(column)
+    # Check column against base types and report column base type evaluation.
+    base_type_results = analyze_base_type(column_data)
+    # dominant_base_type = get_dominant_base_type(base_type_results)
 
-    report_base_type(base_type_results, rows)
+    # merged_rdd = join_results(base_type_results)
 
     # Check column against semantic types.
     # semantic_type_results = analyze_semantic_type(column)
 
-    # TODO get rows of largest
     # report_semantic_type(semantic_type_results, rows)
 
     # Compute column-wise aggregates.
-    # TODO not sure if semantic_type_results should be utilized.
     # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
+
+    # master_df = join_results(base_type_results)
 
 
 def analyze_base_type(data):
@@ -91,13 +79,10 @@ def analyze_base_type(data):
     Once we do so, the origin data splits: send the valid casts to :valid
     and the invalid casts (the ones that didn't pass) to :remaining.
 
-    :valid will be stored in the :result_dict dictionary under the 'int' key
-    (the actual function, not the string), so we format it as the following
-    tuple triplet:
-
-        1. Number of non-unique values that were cast to :base_type
-        2. Number of unique values that were cast to :base_type
-        3. The set of values cast to :base_type (if the set's length < 100 -- for readability)
+    For example, on the first iteration :valid will store the valid values
+    in :data that were cast to int. Then, we store those values (still as RDD)
+    in the :result_dict dictionary under the 'int' key (the actual function,
+    not the string).
 
     We continue with :remaining as our new origin dataset. Once we've
     exhausted all :base_type in :potential_base_type, we attribute
@@ -115,8 +100,7 @@ def analyze_base_type(data):
     :param data: Spark DataFrame containing one column's values.
 
     :return
-        result_dict: dictionary of tuples describing our column's
-        valid base types.
+        result_dict: dictionary of RDD's describing our column's valid base type values.
     """
 
     # Initialize results container.
@@ -135,23 +119,16 @@ def analyze_base_type(data):
         # :remaining are rows that weren't.
         valid, remaining = (
             (
-                # From rows of (True, val) tuples, we group by the only key (True)
-                # and map the values to a list to preserve the originals. Next,
-                # we map our (True, <list_of_values>) tuple to one that
-                # looks like: (True, <length of list of values>, <length of set of values>).
-                # (This is obviously flexible, and can be changed in the future. This
-                # configuration tells us the number of values in the column that were
-                # cast as :base_type_function and the number of unique values in that list.)
+                # From rows of (True, val) tuples, extract the :val,
+                # re-map to (val, <type val>) tuples.
                 base_type_rdd.filter(lambda pair: pair[0] is True)
-                             .groupByKey()
-                             .mapValues(list)
-                             .map(lambda pair: (len(pair[1]), len(set(pair[1])), sample(set(pair[1]), min(100, len(set(pair[1]))))))
+                             .map(lambda pair: (pair[1], base_type_names[base_type_function]))
                              .collect()
             ),
             (
                 # From rows of (False, val) tuples, we need to re-cycle them through
                 # the casting functions. We thus have to make sure that when we access
-                # row[0] on Line 157, that we access the correct value and not `False`.
+                # row[0] that we access the correct value and not `False`.
                 # So, we map our (False, val) pairs to (val, 0) in order to correctly
                 # maintain our loop invariant.
                 base_type_rdd.filter(lambda pair: pair[0] is False)
@@ -162,76 +139,46 @@ def analyze_base_type(data):
         # Store the 3-length tuple into :result_dict under the key :base_type_function.
         result_dict[base_type_function] = valid
 
-        # Assign our new dataset to our :remaining.
+        # Assign our origin dataset to our :remaining RDD.
         data = remaining
 
     # When we're done, we're left with (val, 0) tuples that weren't able to be cast
     # as any of our defined base type functions. Hence, we default their casting to
     # string types since all types can be represented as strings. We don't do anything
     # new -- it's the same algorithm as we use for :valid.
-    result_dict[str] = (
-        data.map(lambda row: (True, row[0]))
-            .groupByKey()
-            .mapValues(list)
-            .map(lambda pair: (len(pair[1]), len(set(pair[1])), sample(set(pair[1]), min(100, len(set(pair[1]))))))
-            .collect()
-    )
+    result_dict[str] = data.map(lambda pair: (pair[0], base_type_names[str])).collect()
 
     return result_dict
 
 
-def report_base_type(base_type_dict, nrows):
-    """Reporter function for current column's base type.
+def join_results(data_dictionary):
 
-    :param base_type_dict: dictionary mapping {function : (amnt, uniq.amnt, vals)}.
-    :param nrows: used for percentage reporting; total number of observations in this data.
+    all_functions = potential_base_types + [str]
+    master_rdd = sc.emptyRDD()
+
+    for base_type in all_functions:
+        rdd = sc.parallelize(data_dictionary[base_type])
+        master_rdd = master_rdd.union(rdd)
+
+    return master_rdd
+
+
+def list_to_csv_str(x):
+    """Given a list of strings, returns a properly-csv-formatted string.
+
+    NOTE: we are using this code from StackOverflow provided by user `galenlong`:
+        http://stackoverflow.com/questions/31898964/how-to-write-the-resulting-rdd-to-a-csv-file-in-spark-python
+
+    We utilize this code to better output our results to the user,
+    and does not influence our project's findings or hypotheses.
     """
 
-    # Iteration containers for building our lines and storing values.
-    look_aside = enumerate(potential_base_types + [str])
-    lines, values = [], []
+    # Build our output string and write row to output string.
+    output = io.StringIO("")
+    csv.writer(output).writerow(x)
 
-    # For each base type in our complete list of base types
-    for index, base_type in look_aside:
-
-        try:
-            # Attempt to isolate the raw number of values in current column
-            # that were cast to :base_type.
-            amount = base_type_dict[base_type][0][0]
-
-            # Attempt to isolate the sample set of values that contain values
-            # that were cast to :base_type.
-            sample_values = base_type_dict[base_type][0][2]
-
-        except IndexError:
-            # If either don't exist, set both to representative 'empty' values.
-            amount = 0
-            sample_values = []
-
-        # :lines will store what to print on each line, so store:
-        #   1) the string-friendly representation of our function
-        #   2) the raw number of casted values in our column
-        #   3) the percentage of values in the entire column that were cast to this type
-        lines.append([potential_base_type_names[index], amount, (amount / nrows) * 100])
-
-        # :values will store sample values for each type, which we will pretty-print.
-        values.append(sample_values)
-
-    # We define our percentage width now -- this sets :width to 5 if any of the raw counts
-    # represented by :amount is equal to nrows (that is, if any type for this column was
-    # determined to be the type for the entire column) and otherwise sets :width to 4.
-    width = 5 if nrows in [line[1] for line in lines] else 4
-
-    # For each line representing a base function type and the set of values
-    # representing that base type, print that frequency distribution to the user.
-    for (line, line_values) in zip(lines, values):
-
-        # Print top-level line denoting (1) type, (2) raw count, (3) proportion.
-        print('|- {0:8s} => {1:10,d} = {2:>0{width}.1f}%'.format(line[0], line[1], line[2], width=width))
-
-        # If we have any sample values to present, pretty-print them.
-        if line[1] > 0:
-            pretty_print_matrix(line_values, indent='\t', per_row=2)
+    # Return string representation of row and remove trailing newline.
+    return output.getvalue().strip()
 
 
 if __name__ == '__main__':
