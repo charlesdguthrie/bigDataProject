@@ -3,6 +3,14 @@ from io import StringIO
 from csv import writer
 
 
+semantic_type_functions = {
+    'int': semantic_type_int_functions,
+    'float': semantic_type_float_functions,
+    'datetime': semantic_type_datetime_functions,
+    'string': semantic_type_string_functions
+}
+
+
 def cli_help():
     """Provide assistance if the user signals they need help.
 
@@ -214,3 +222,40 @@ def list_to_csv_str(x):
 
     # Return string representation of row and remove trailing newline.
     return output.getvalue().strip()
+
+
+def get_dominant_base_type(rdd):
+    """Helper function to determine most prevalent value in key-value RDD's.
+
+    :param rdd: RDD of (val, cast) tuples after passing through :analyze_base_type().
+    :return top_type: string representation of RDD's most common base type.
+    """
+
+    # Use Spark RDD methods to group each cast type and reduce to get counts.
+    type_to_count = (
+        rdd.map(lambda pair: (pair[1], 1))
+           .reduceByKey(lambda a, b: a + b)
+           .collect()
+    )
+
+    # Python methods to quickly sort a list of (max) length 4.
+    # Extract and return type that is prevalent in column.
+    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)[0][0]
+    return top_type
+
+
+def semantic_type_pipeline(base_type_name, value):
+
+    global semantic_type_functions
+
+    semantic_type_functions = semantic_type_functions[base_type_name]
+    semantic_type, is_valid = (None, None)
+
+    for st_function in semantic_type_functions:
+
+        semantic_type, is_valid = st_function(value)
+
+        if (semantic_type, is_valid) is not (None, None):
+            break
+
+    return semantic_type, is_valid
