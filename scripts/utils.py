@@ -1,13 +1,16 @@
 from sys import exit
 from io import StringIO
 from csv import writer
-
+from .semantic_type_int import int_checks
+from .semantic_type_float import float_checks
+from .semantic_type_date import date_checks
+from .semantic_type_string import string_checks
 
 semantic_type_functions = {
-    'int': semantic_type_int_functions,
-    'float': semantic_type_float_functions,
-    'datetime': semantic_type_datetime_functions,
-    'string': semantic_type_string_functions
+    'int': int_checks,
+    'float': float_checks,
+    'datetime': date_checks,
+    'string': string_checks
 }
 
 
@@ -245,17 +248,38 @@ def get_dominant_base_type(rdd):
 
 
 def semantic_type_pipeline(base_type_name, value):
+    """Wrapper for evaluating semantic types for any particular base type.
 
+    :param base_type_name: string representation of the column's base type.
+    :param value: the value whose semantic type we are evaluating.
+    :return semantic_type: string representation of value's semantic type.
+    :return is_valid: whether our value is a valid instance of the semantic type.
+        Note: this means we can have a base type float, semantic type coordinate point,
+        but still have that point be invalid if it refers to some location clearly outside
+        of New York. This logic is implemented in the semantic_type_*.py files.
+    """
+
+    # Global reference to our different classes of semantic evaluation functions.
     global semantic_type_functions
 
-    semantic_type_functions = semantic_type_functions[base_type_name]
+    # Initialize both the list of functions to evaluate and our default results.
+    semantic_type_functions_list = semantic_type_functions[base_type_name]
     semantic_type, is_valid = (None, None)
 
-    for st_function in semantic_type_functions:
+    for st_function in semantic_type_functions_list:
 
+        # Apply each function onto our value, capturing output semantic type and validity.
         semantic_type, is_valid = st_function(value)
 
+        # Break out of this loop once we have a match.
         if (semantic_type, is_valid) is not (None, None):
             break
 
-    return semantic_type, is_valid
+    # If we have yet to identify the semantic type after going through
+    # each of the semantic type functions, we consider the semantic type
+    # undeterminable and validity as not applicable.
+    if (semantic_type, is_valid) is (None, None):
+        return ('undeterminable', 'n/a')
+
+    else:
+        return (semantic_type, is_valid)

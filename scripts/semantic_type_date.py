@@ -3,6 +3,8 @@ semantic_type_date.py
 
 Check date semantic types
 '''
+from functools import partial
+from datetime import datetime
 
 def _check_date_validity(value, mindate, maxdate, fmt):
     '''

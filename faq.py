@@ -1,10 +1,10 @@
-from __future__ import print_function
 from base_type import base_type_int, base_type_float, base_type_datetime
-from utils import *
+from scripts.utils import *
 from pyspark.sql import SparkSession
 from pyspark.context import SparkContext
 import sys
 from time import time
+from itertools import chain
 from pprint import pprint
 
 
@@ -74,7 +74,7 @@ def analyze(column_name, data):
     semantic_type_results = analyze_semantic_type(base_type_rdd)
 
     # Compute column-wise aggregates.
-    # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
+    # aggregate_results = analyze_aggregate(semantic_type_results)
 
     # Needs more!
     # merged_rdd = join_results(base_type_results)
@@ -158,7 +158,6 @@ def analyze_base_type(data):
     result_rdd = result_rdd.union(
         data.map(lambda pair: (pair[0], base_type__names[str]))
     )
-
     return result_rdd
 
 
@@ -177,37 +176,24 @@ def analyze_semantic_type(base_type_rdd):
     # Mark all non-:dominant_base_type values as semantic type: unknown.
     unknown, remaining = (
 
-        base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
-                     .map(lambda row: (row[:], 'unknown')),
+        # For values where the base type is not the column's dominant base type,
+        # their semantic type is unknown and validity is n/a. Finally, flatten the tuple
+        # from ((val, type), (sem_type, valid)) -> (val, type, sem_type, valid).
+        base_type_rdd.filter(lambda row: row[1] != dominant_base_type_name)
+                     .map(lambda row: (row, ('unknown', 'n/a')))
+                     .map(lambda row: tuple(chain(*row))),
 
-        # TODO figure out semantic type pipeline function architecture.
-        base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
-                     .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type_name)(row[0])))
+        # For values where the base type is the column's dominant base type,
+        # evaluate their semantic type and validity. Finally, flatten the tuple
+        # from ((val, type), (sem_type, valid)) -> (val, type, sem_type, valid).
+        base_type_rdd.filter(lambda row: row[1] == dominant_base_type_name)
+                     .map(lambda row: (row, semantic_type_pipeline(dominant_base_type_name, row[0])))
+                     .map(lambda row: tuple(chain(*row)))
     )
 
     # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
     semantic_type_rdd = unknown.union(remaining)
     return semantic_type_rdd
-
-
-def get_dominant_base_type(rdd):
-    """Helper function to determine most prevalent value in key-value RDD's.
-
-    :param rdd: RDD of (val, cast) tuples after passing through :analyze_base_type().
-    :return top_type: string representation of RDD's most common base type.
-    """
-
-    # Use Spark RDD methods to group each cast type and reduce to get counts.
-    type_to_count = (
-        rdd.map(lambda pair: (pair[1], 1))
-           .reduceByKey(lambda a, b: a + b)
-           .collect()
-    )
-
-    # Python methods to quickly sort a list of (max) length 4.
-    # Extract and return type that is prevalent in column.
-    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)[0][0]
-    return top_type
 
 
 if __name__ == '__main__':
