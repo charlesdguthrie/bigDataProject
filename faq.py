@@ -166,27 +166,27 @@ def analyze_semantic_type(base_type_rdd):
 
     :param base_type_rdd: RDD containing (val, cast) tuples as a result
         of initial pass through :analyze_base_type().
+    :return semantic_type_rdd: RDD containing additional field per tuple representing our
+        value's inferred semantic type.
     """
 
     # Determine column's most prevalent base type.
-    dominant_base_type = get_dominant_base_type(base_type_rdd)
-
-    pprint(base_type_rdd.take(10))
+    dominant_base_type_name = get_dominant_base_type(base_type_rdd)
 
     # Mark all non-:dominant_base_type values as semantic type: unknown.
-    # unknown, remaining = (
-        #
-        # base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
-        #              .map(lambda row: (row[:], 'unknown')),
-        #
-        # # TODO figure out semantic type pipeline function architecture.
-        # base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
-        #              .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type)(row[0])))
-    # )
+    unknown, remaining = (
+
+        base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
+                     .map(lambda row: (row[:], 'unknown')),
+
+        # TODO figure out semantic type pipeline function architecture.
+        base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
+                     .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type_name)(row[0])))
+    )
 
     # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
-    # semantic_type_rdd = unknown.union(remaining)
-    # return semantic_type_rdd
+    semantic_type_rdd = unknown.union(remaining)
+    return semantic_type_rdd
 
 
 def get_dominant_base_type(rdd):
