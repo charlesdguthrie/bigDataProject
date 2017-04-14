@@ -1,112 +1,83 @@
 from __future__ import print_function
 from base_type import base_type_int, base_type_float, base_type_datetime
+from utils import *
 from pyspark.sql import SparkSession
+from pyspark.context import SparkContext
 import sys
-from pprint import pprint
 from time import time
+from pprint import pprint
 
 
-# Establish Spark session details.
+# Establish Spark session and context.
 spark = SparkSession.builder \
-    .master("local") \
-    .appName("311 Analysis") \
-    .getOrCreate()
+                    .master("local") \
+                    .appName("311 Analysis") \
+                    .getOrCreate()
 
-# Establish base function types.
+sc = SparkContext.getOrCreate()
+
+# Establish base function types and names.
 potential_base_types = [base_type_int, base_type_float, base_type_datetime]
+base_type__names = {
+    base_type_int: 'int',
+    base_type_float: 'float',
+    base_type_datetime: 'datetime',
+    str: 'string'
+}
+names__base_type = dict([reversed(i) for i in base_type__names.items()])
 
 
 def main():
 
-    # Obtain measure of total time elapsed.
     global_start = time()
 
     # Read input data.
-    data = read_data()
+    data = read_data(spark=spark, file=sys.argv[1])
 
     # Separate columns that are in :data from those that are not.
-    valid_columns = validate_request(data.columns)
+    valid_columns = validate_request(user_columns=sys.argv[2:], data_columns=data.columns)
 
-    # TODO consider re-writing to rely upon Spark, not Python.
-    # TODO remove timing stuff for final submission.
     # Analyze valid columns only, printing out time diagnostics along the way.
     for index, column in enumerate(valid_columns):
         iter_start = time()
-        print('-' * 50, "Analyzing column: {} ({}/{})".format(column, index + 1, len(valid_columns)), '-' * 50, sep='\n')
         analyze(column, data)
-        print('\nTook {:.1f} seconds'.format(time() - iter_start))
+        print('\nColumn `{}` took {:.1f} seconds.\n'.format(column, time() - iter_start))
 
-    # Obtain measure of total time elapsed.
-    print("Total time: {:.1f} seconds".format(time() - global_start))
-
-
-def read_data():
-    """Reads input CSV and returns Spark DataFrame object
-
-    :return data: Spark DataFrame representing user-provided CSV
-    """
-
-    data = spark.read.csv(path=sys.argv[1], header=True)
-    return data
-
-
-# TODO are column orders changing? What's going on?
-def validate_request(data_columns):
-    """Determine what user-provided columns are valid and which are invalid.
-
-    This function takes the user command-line inputs, puts them into a set,
-    and comparing that set to the set of valid columns in the data. If the user
-    input any invalid columns (e.g. 'Lstitude' instead of 'Latitude'), inform
-    the user. We only analyze columns that are both user-specified and valid.
-
-    :param data_columns: columns of the Spark DataFrame object
-    :return valid: set of column names as strings
-    """
-
-    # Isolate our user- and data-columns into sets.
-    data_columns = set(data_columns)
-    user_columns = set(sys.argv[2:])
-
-    if ':all' in user_columns:
-        return data_columns
-
-    # Valid columns are in the intersection between the two,
-    # invalid columns are in the difference from user to data columns.
-    valid, invalid = user_columns.intersection(data_columns), user_columns.difference(data_columns)
-
-    # For all invalid columns, inform the user of their invalidity.
-    for column in invalid:
-        print("`{}` is not a valid column --- skipping.".format(column))
-
-    # Proceed with the analysis using only valid columns.
-    return valid
+    print('Total runtime: {} seconds.'.format(time() - global_start))
 
 
 # TODO semantic type checking -- Charlie/Dave
 # TODO NULL/Invalid values (Problem Type 1) -- Charlie
 # TODO Valid/Outlier values (Problem Type 2) -- Danny
-def analyze(column, data):
+def analyze(column_name, data):
     """Perform common analyses for a given column in our DataFrame.
 
-    :param column: string representing column within :data
+    This function encompasses the entire analysis performed on ONE column,
+    including:
+
+        1. base type evaluation
+        2. semantic type evaluation
+        3. valid/outlier value evaluation
+
+    :param column_name: string representing column within :data
     :param data: Spark DataFrame containing user-provided CSV values
     """
 
-    # TODO consider Parquet columnar format?
     # Work with specific column as RDD.
-    column = data.select(column).rdd
+    column_data = data.select(column_name).rdd
 
-    # Check column against base types.
-    base_type_results = analyze_base_type(column)
-
-    pprint(base_type_results)
+    # Check column against base types and report column base type evaluation.
+    # base_type_dict, base_type_rdd = analyze_base_type(column_data)
+    base_type_rdd = analyze_base_type(column_data)
 
     # Check column against semantic types.
-    # semantic_type_results = analyze_semantic_type(column)
+    semantic_type_results = analyze_semantic_type(base_type_rdd)
 
     # Compute column-wise aggregates.
-    # TODO not sure if semantic_type_results should be utilized.
     # aggregate_results = analyze_aggregate(column, sample, semantic_type_results)
+
+    # Needs more!
+    # merged_rdd = join_results(base_type_results)
 
 
 def analyze_base_type(data):
@@ -118,13 +89,10 @@ def analyze_base_type(data):
     Once we do so, the origin data splits: send the valid casts to :valid
     and the invalid casts (the ones that didn't pass) to :remaining.
 
-    :valid will be stored in the :result_dict dictionary under the 'int' key
-    (the actual function, not the string), so we format it as the following
-    tuple triplet:
-
-        1. Number of non-unique values that were cast to :base_type
-        2. Number of unique values that were cast to :base_type
-        3. The set of values cast to :base_type (if the set's length < 100 -- for readability)
+    For example, on the first iteration :valid will store the valid values
+    in :data that were cast to int. Then, we store those values (still as RDD)
+    in the :result_dict dictionary under the 'int' key (the actual function,
+    not the string).
 
     We continue with :remaining as our new origin dataset. Once we've
     exhausted all :base_type in :potential_base_type, we attribute
@@ -142,12 +110,11 @@ def analyze_base_type(data):
     :param data: Spark DataFrame containing one column's values.
 
     :return
-        result_dict: dictionary of tuples describing our column's
-        valid base types.
+        result_dict: dictionary of RDD's describing our column's valid base type values.
     """
 
     # Initialize results container.
-    result_dict = dict()
+    result_rdd = sc.emptyRDD()
 
     # For each function in our list of potential base type check functions
     for base_type_function in potential_base_types:
@@ -162,23 +129,15 @@ def analyze_base_type(data):
         # :remaining are rows that weren't.
         valid, remaining = (
             (
-                # From rows of (True, val) tuples, we group by the only key (True)
-                # and map the values to a list to preserve the originals. Next,
-                # we map our (True, <list_of_values>) tuple to one that
-                # looks like: (True, <length of list of values>, <length of set of values>).
-                # (This is obviously flexible, and can be changed in the future. This
-                # configuration tells us the number of values in the column that were
-                # cast as :base_type_function and the number of unique values in that list.)
+                # From rows of (True, val) tuples, extract the :val,
+                # re-map to (val, <type val>) tuples.
                 base_type_rdd.filter(lambda pair: pair[0] is True)
-                             .groupByKey()
-                             .mapValues(list)
-                             .map(lambda pair: (len(pair[1]), len(set(pair[1])), set(pair[1]) if len(set(pair[1])) < 100 else {}))
-                             .collect()
+                             .map(lambda pair: (pair[1], base_type__names[base_type_function]))
             ),
             (
                 # From rows of (False, val) tuples, we need to re-cycle them through
                 # the casting functions. We thus have to make sure that when we access
-                # row[0] on Line 157, that we access the correct value and not `False`.
+                # row[0] that we access the correct value and not `False`.
                 # So, we map our (False, val) pairs to (val, 0) in order to correctly
                 # maintain our loop invariant.
                 base_type_rdd.filter(lambda pair: pair[0] is False)
@@ -186,127 +145,69 @@ def analyze_base_type(data):
             )
         )
 
-        # Store the 3-length tuple into :result_dict under the key :base_type_function.
-        result_dict[base_type_function] = valid
+        # Append the valid-cast tuples to our container RDD :result_rdd.
+        result_rdd = result_rdd.union(valid)
 
-        # Assign our new dataset to our :remaining.
+        # Assign our origin dataset to our :remaining RDD.
         data = remaining
-
 
     # When we're done, we're left with (val, 0) tuples that weren't able to be cast
     # as any of our defined base type functions. Hence, we default their casting to
     # string types since all types can be represented as strings. We don't do anything
     # new -- it's the same algorithm as we use for :valid.
-    result_dict[str] = (
-        data.map(lambda row: (True, row[0]))
-            .groupByKey()
-            .mapValues(list)
-            .map(lambda pair: (len(pair[1]), len(set(pair[1])), set(pair[1]) if len(set(pair[1])) < 100 else {}))
-            .collect()
+    result_rdd = result_rdd.union(
+        data.map(lambda pair: (pair[0], base_type__names[str]))
     )
 
-    return result_dict
+    return result_rdd
 
 
-def get_header():
-    """Obtain the first line of a file.
+def analyze_semantic_type(base_type_rdd):
+    """Perform intermediary analysis on column's semantic type.
 
-    This function is primarily reserved for when a user does not specify
-    columns and only runs `spark-submit faq.py <input file>.csv`. We take
-    that to mean they want a nice output of what columns they *can* choose
-    from, so just read the first line (which contains the column names).
-
-    :return first_line: list of strings representing first line of comma-delimited file
+    :param base_type_rdd: RDD containing (val, cast) tuples as a result
+        of initial pass through :analyze_base_type().
+    :return semantic_type_rdd: RDD containing additional field per tuple representing our
+        value's inferred semantic type.
     """
 
-    # Attempt to read just the first line, split it, and return it.
-    try:
-        with open(sys.argv[1], 'r') as f:
-            first_line = [name.strip() for name in f.readline().split(',')]
-            return first_line
+    # Determine column's most prevalent base type.
+    dominant_base_type_name = get_dominant_base_type(base_type_rdd)
 
-    # Handle auxiliary exceptions.
-    except FileNotFoundError:
-        print("Error: could not find file `{}`. Please try again.".format(sys.argv[1]))
-        print("Exiting...")
-        sys.exit(0)
+    # Mark all non-:dominant_base_type values as semantic type: unknown.
+    unknown, remaining = (
 
-    except PermissionError:
-        print("Error: you do not have read-permission on file `{}`. Please try again.".format(sys.argv[1]))
-        print("Exiting...")
-        sys.exit(0)
+        base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
+                     .map(lambda row: (row[:], 'unknown')),
 
-
-def print_prompt(column_names):
-    """Pretty-print column names to the user.
-
-    This function is only called if the user runs this script as
-    `spark-submit faq.py <input_file>.csv` and does not specify columns.
-     We take that to mean that they want a better understanding of what
-     columns they *can* choose from, so given we already read the first line
-     (see get_header()), pretty-print those column names.
-
-    :param column_names: list of strings representing column names from input CSV
-    """
-
-    # Define our prompt and print the header to our 'table'.
-    prompt = "\nInput file contained the following columns:"
-    print(prompt, '-' * len(prompt), sep='\n')
-
-    # The following code for pretty-printing a matrix was sourced from:
-    #   http://stackoverflow.com/questions/13214809/pretty-print-2d-python-list
-    # We utilize this code to better display the available columns to the user,
-    # and does not influence our project's findings or hypotheses.
-
-    # Convert our list to a matrix (list of lists) to work properly.
-    names_matrix = [column_names[i:i + 4] for i in range(0, len(column_names), 4)]
-
-    # Do...the thing.
-    lens = [max(map(len, col)) for col in zip(*names_matrix)]
-    fmt = '\t'.join('{{:{}}}'.format(x) for x in lens)
-    table = [fmt.format(*row) for row in names_matrix]
-    print('\n'.join(table))
-
-    # Inform the user of how they can proceed.
-    print(
-        "\nHence, you can now run something like:\n",
-        "\t$ spark-submit faq.py {0} \'{1}\' \n".format(sys.argv[1], column_names[0]),
-        "or, to run analysis on all columns:\n",
-        "\t$ spark-submit faq.py {0} :all\n".format(sys.argv[1]),
-        sep="\n"
+        # TODO figure out semantic type pipeline function architecture.
+        base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
+                     .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type_name)(row[0])))
     )
 
+    # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
+    semantic_type_rdd = unknown.union(remaining)
+    return semantic_type_rdd
 
-def cli_help():
-    """Provide assistance if the user signals they need help.
 
-    This function is only called if the user runs this script as
-    `spark-submit faq.py` with no input file. If so, we inform the user
-    on what actions they can take to proceed with the analysis and exit.
+def get_dominant_base_type(rdd):
+    """Helper function to determine most prevalent value in key-value RDD's.
+
+    :param rdd: RDD of (val, cast) tuples after passing through :analyze_base_type().
+    :return top_type: string representation of RDD's most common base type.
     """
 
-    print(
-        "\n-----------------------------------------------",
-        "This file requires certain command-line inputs:",
-        "-----------------------------------------------\n",
+    # Use Spark RDD methods to group each cast type and reduce to get counts.
+    type_to_count = (
+        rdd.map(lambda pair: (pair[1], 1))
+           .reduceByKey(lambda a, b: a + b)
+           .collect()
+    )
 
-        "To get a pretty printing of your data's columns, make sure you pass in",
-        "the data (with a header line containing column names, separated by commas) like so:",
-
-        "\n\t$ spark-submit faq.py <file>.csv\n",
-
-        "We suggest running the above if you're not sure exactly what column",
-        "you'd like to analyze. Once you know what column you're looking to",
-        "explore, run the following to actually analyze:",
-
-        "\n\t$ spark-submit faq.py <file>.csv '<column name case-sensitive>'\n",
-
-        "Note: you can also submit multiple columns to be evaluated within one run:",
-
-        "\n\t$ spark-submit faq.py <file>.csv '<column 1>' '<column 2>' ... '<column n>'\n",
-        sep='\n')
-
-    sys.exit(0)
+    # Python methods to quickly sort a list of (max) length 4.
+    # Extract and return type that is prevalent in column.
+    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)[0][0]
+    return top_type
 
 
 if __name__ == '__main__':
@@ -319,8 +220,8 @@ if __name__ == '__main__':
     # Provide information on what columns are available for analysis.
     #   $ spark-submit faq.py <input_file>.csv
     elif len(sys.argv) == 2:
-        header = get_header()
-        print_prompt(header)
+        header, filename = get_header(sys.argv[1])
+        print_prompt(header, filename)
 
     # Perform analysis on desired columns (or all columns, if :all passed)
     #   $ spark-submit faq.py <input_file>.csv :all

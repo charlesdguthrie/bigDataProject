@@ -2,7 +2,6 @@ from time import strptime
 from functools import partial
 
 
-# TODO how have we resolved the issue with lat/long being ints?
 def base_type_int(val):
     """Determine whether a value's base type is integer.
 
@@ -13,7 +12,7 @@ def base_type_int(val):
         was correctly cast (or not) and the original value.
     """
     try:
-        cast = int(val)
+        _ = int(val)
         return (True, val)
 
     except:
@@ -30,7 +29,7 @@ def base_type_float(val):
         was correctly cast (or not) and the original value.
     """
     try:
-        cast = float(val)
+        _ = float(val)
         return (True, val)
 
     except:
@@ -48,7 +47,7 @@ def _base_type_datetime(val, fmt):
     """
 
     if val is None:
-        return (False, val)
+        return (False, None)
 
     try:
         _ = strptime(val, fmt)
@@ -59,7 +58,7 @@ def _base_type_datetime(val, fmt):
 
 
 # Use a function partial to avoid passing in the date format
-# each time we call _base_type_datetime. This is a bit nonflexible
+# each time we call _base_type_datetime. This is a bit inflexible
 # in terms of the datetime formats we can parse, but works for our
 # dataset just fine. A more robust solution would be to use
 # dateutil.parser.parse(), but it's very slow.
