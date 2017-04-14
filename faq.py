@@ -17,12 +17,13 @@ sc = SparkContext.getOrCreate()
 
 # Establish base function types and names.
 potential_base_types = [base_type_int, base_type_float, base_type_datetime]
-base_type_names = {
+base_type__names = {
     base_type_int: 'int',
     base_type_float: 'float',
     base_type_datetime: 'datetime',
     str: 'string'
 }
+names__base_type = dict([reversed(i) for i in base_type__names.items()])
 
 
 def main():
@@ -130,7 +131,7 @@ def analyze_base_type(data):
                 # From rows of (True, val) tuples, extract the :val,
                 # re-map to (val, <type val>) tuples.
                 base_type_rdd.filter(lambda pair: pair[0] is True)
-                             .map(lambda pair: (pair[1], base_type_function))
+                             .map(lambda pair: (pair[1], base_type__names[base_type_function]))
             ),
             (
                 # From rows of (False, val) tuples, we need to re-cycle them through
@@ -154,7 +155,7 @@ def analyze_base_type(data):
     # string types since all types can be represented as strings. We don't do anything
     # new -- it's the same algorithm as we use for :valid.
     result_rdd = result_rdd.union(
-        data.map(lambda pair: (pair[0], str))
+        data.map(lambda pair: (pair[0], base_type__names[str]))
     )
 
     return result_rdd
@@ -170,13 +171,22 @@ def analyze_semantic_type(base_type_rdd):
     # Determine column's most prevalent base type.
     dominant_base_type = get_dominant_base_type(base_type_rdd)
 
+    pprint(base_type_rdd.take(10))
+
     # Mark all non-:dominant_base_type values as semantic type: unknown.
-    # TODO
+    # unknown, remaining = (
+        #
+        # base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
+        #              .map(lambda row: (row[:], 'unknown')),
+        #
+        # # TODO figure out semantic type pipeline function architecture.
+        # base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
+        #              .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type)(row[0])))
+    # )
 
-    # Continue analysis on semantic types matching :dominant_base_type.
-    # TODO
-
-    pass
+    # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
+    # semantic_type_rdd = unknown.union(remaining)
+    # return semantic_type_rdd
 
 
 def get_dominant_base_type(rdd):
@@ -194,10 +204,9 @@ def get_dominant_base_type(rdd):
     )
 
     # Python methods to quickly sort a list of (max) length 4.
-    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)
-
-    # Extract and return second element of the first tuple element.
-    return type_to_count[0][1]
+    # Extract and return type that is prevalent in column.
+    top_type = sorted(type_to_count, key=lambda pair: pair[1], reverse=True)[0][0]
+    return top_type
 
 
 if __name__ == '__main__':
