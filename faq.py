@@ -1,5 +1,5 @@
 from base_type import base_type_int, base_type_float, base_type_datetime
-from utils import *
+from scripts.utils import *
 from pyspark.sql import SparkSession
 from pyspark.context import SparkContext
 import sys
@@ -178,11 +178,10 @@ def analyze_semantic_type(base_type_rdd):
     unknown, remaining = (
 
         base_type_rdd.filter(lambda row: row[1] is not dominant_base_type_name)
-                     .map(lambda row: (row[:], 'unknown')),
+                     .map(lambda row: (row, 'unknown', 'n/a')),
 
-        # TODO figure out semantic type pipeline function architecture.
         base_type_rdd.filter(lambda row: row[1] is dominant_base_type_name)
-                     .map(lambda row: (row[:], semantic_type_pipeline(dominant_base_type_name, row[0])))
+                     .map(lambda row: (row, semantic_type_pipeline(dominant_base_type_name, row[0])))
     )
 
     # Append valid semantic type RDD :remaining to :unknown and return complete RDD.
