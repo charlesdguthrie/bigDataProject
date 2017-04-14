@@ -9,14 +9,14 @@ x	Descriptor: subset of complaint type?
 x	Location Type: none
 x	Incident Zip: split on -, must match NYS zips, https://www.unitedstateszipcodes.org/ny/
 	Incident Address
-	Street Name
+	Street Name - should be inside incident address
 	Cross Street 1
 	Cross Street 2
 	Intersection Street 1
 	Intersection Street 2
 	Address Type
 ?	City - these are really neighborhoods
-	Landmark
+x	Landmark
 	Facility Type
 	Status
 x	Due Date
