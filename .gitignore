@@ -10,3 +10,6 @@ data
 *.crc
 csv-output/*
 csv-output/.*
+
+# MacOS files
+.DS_Store
