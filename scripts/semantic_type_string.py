@@ -16,7 +16,7 @@ def check_borough_validity(value):
         taxi co. borough
     '''
 
-    if value is None:
+    if type(value) != str:
         return (None, None)
 
     elif str.upper(value) in valid_boroughs:
