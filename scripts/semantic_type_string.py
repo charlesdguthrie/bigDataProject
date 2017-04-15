@@ -4,6 +4,9 @@ semantic_type_string.py
 Check semantic type of strings
 '''
 
+valid_boroughs = {'BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND'}
+
+
 def check_borough_validity(value):
     '''
     check to see if value is among the 5 boroughs.
@@ -12,7 +15,6 @@ def check_borough_validity(value):
         park borough
         taxi co. borough
     '''
-    valid_boroughs = ['BRONX','BROOKLYN','MANHATTAN','QUEENS','STATEN ISLAND']
 
     if value is None:
         return (None, None)
