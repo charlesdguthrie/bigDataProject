@@ -1,15 +1,12 @@
 from sys import exit
-from io import StringIO
-from csv import writer
+import os
 
 from .semantic_type_int import int_checks
 from .semantic_type_float import float_checks
 from .semantic_type_date import date_checks
 from .semantic_type_string import string_checks
 
-from pyspark.sql.types import StructType
-from pyspark.sql.types import StructField
-from pyspark.sql.types import StringType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 semantic_type_functions = {
     'int': int_checks,
@@ -214,24 +211,6 @@ def get_header(file):
         exit(0)
 
 
-def list_to_csv_str(x):
-    """Given a list of strings, returns a properly-csv-formatted string.
-
-    NOTE: we are using this code from StackOverflow provided by user `galenlong`:
-        http://stackoverflow.com/questions/31898964/how-to-write-the-resulting-rdd-to-a-csv-file-in-spark-python
-
-    We utilize this code to better output our results to the user,
-    and does not influence our project's findings or hypotheses.
-    """
-
-    # Build our output string and write row to output string.
-    output = StringIO("")
-    writer(output).writerow(x)
-
-    # Return string representation of row and remove trailing newline.
-    return output.getvalue().strip()
-
-
 def get_dominant_base_type(rdd):
     """Helper function to determine most prevalent value in key-value RDD's.
 
@@ -241,7 +220,7 @@ def get_dominant_base_type(rdd):
 
     # Use Spark RDD methods to group each cast type and reduce to get counts.
     type_to_count = (
-        rdd.map(lambda pair: (pair[1], 1))
+        rdd.map(lambda row: (row[-1], 1))
            .reduceByKey(lambda a, b: a + b)
            .collect()
     )
@@ -290,22 +269,36 @@ def semantic_type_pipeline(base_type_name, value):
         return (semantic_type, is_valid)
 
 
-def generate_master_df(spark):
+def index_rdd(rdd):
+    """Given a RDD, generate a new tuple entry containing a row ID.
 
-    header = ['column_name', 'value', 'base_type', 'semantic_type', 'valid']
-    schema = StructType([StructField(name, StringType(), True) for name in header])
-    return spark.createDataFrame(schema)
+    We utilize this approach so that once we output our RDDs, we can
+    uniquely identify a row's values using that ID.
+
+    :param rdd: Spark RDD containing original column data.
+    :return id_rdd: transformed input with (id, original_data) tuples.
+    """
+
+    # Map original values to (id, original_data) tuples.
+    id_rdd = rdd.zipWithIndex().map(lambda row: (row[1], *row[0]))
+    return id_rdd
 
 
 def rdd_to_csv(rdd):
+    """Given a RDD, transform to DataFrame and output directory containing CSVs.
 
+    :param rdd: RDD we would like to output as CSV
+    """
+
+    # Define our DataFrame's schema using headers.
+    # Note: our output CSVs will not have the data header --
+    # this will have to be added later.
     header = ['column_name', 'value', 'base_type', 'semantic_type', 'valid']
-    schema = StructType([StructField(name, StringType(), True) for name in header])
+    schema = StructType(
+        [StructField('id', IntegerType(), False)] +
+        [StructField(name, StringType(), True) for name in header]
+    )
 
-    print('Enforcing schema...')
-
+    # Cast our RDD to a DataFrame and write to output directory "data".
     df = rdd.toDF(schema)
-
-    print('Writing to directory...')
-
-    df.write.format('com.databricks.spark.csv').save('csv-output', header='true')
+    df.write.csv(os.path.join("data"))
