@@ -4,8 +4,8 @@ from pyspark.sql import SparkSession
 from pyspark.context import SparkContext
 import sys
 from time import time
-from itertools import chain
 from pprint import pprint
+from itertools import chain
 
 
 # Establish Spark session and context.
@@ -30,6 +30,7 @@ names__base_type = dict([reversed(i) for i in base_type__names.items()])
 def main():
 
     global_start = time()
+    master_rdd = sc.emptyRDD()
 
     # Read input data.
     data = read_data(spark=spark, file=sys.argv[1])
@@ -40,10 +41,15 @@ def main():
     # Analyze valid columns only, printing out time diagnostics along the way.
     for index, column in enumerate(valid_columns):
         iter_start = time()
-        analyze(column, data)
+        column_rdd = analyze(column, data)
+        master_rdd = master_rdd.union(column_rdd)
         print('\nColumn `{}` took {:.1f} seconds.\n'.format(column, time() - iter_start))
 
-    print('Total runtime: {} seconds.'.format(time() - global_start))
+    print('Stitching data together...')
+
+    rdd_to_csv(master_rdd)
+
+    print('Total runtime: {:.1f} seconds.'.format(time() - global_start))
 
 
 # TODO semantic type checking -- Charlie/Dave
@@ -71,13 +77,10 @@ def analyze(column_name, data):
     base_type_rdd = analyze_base_type(column_data)
 
     # Check column against semantic types.
-    semantic_type_results = analyze_semantic_type(base_type_rdd)
+    semantic_type_results = analyze_semantic_type(base_type_rdd, column_name)
 
-    # Compute column-wise aggregates.
-    # aggregate_results = analyze_aggregate(semantic_type_results)
-
-    # Needs more!
-    # merged_rdd = join_results(base_type_results)
+    # Output results for aggregate.py.
+    return semantic_type_results
 
 
 def analyze_base_type(data):
@@ -161,7 +164,7 @@ def analyze_base_type(data):
     return result_rdd
 
 
-def analyze_semantic_type(base_type_rdd):
+def analyze_semantic_type(base_type_rdd, column_name):
     """Perform intermediary analysis on column's semantic type.
 
     :param base_type_rdd: RDD containing (val, cast) tuples as a result
@@ -180,14 +183,14 @@ def analyze_semantic_type(base_type_rdd):
         # their semantic type is unknown and validity is n/a. Finally, flatten the tuple
         # from ((val, type), (sem_type, valid)) -> (val, type, sem_type, valid).
         base_type_rdd.filter(lambda row: row[1] != dominant_base_type_name)
-                     .map(lambda row: (row, ('unknown', 'n/a')))
+                     .map(lambda row: ([column_name], row, ('unknown', 'n/a')))
                      .map(lambda row: tuple(chain(*row))),
 
         # For values where the base type is the column's dominant base type,
         # evaluate their semantic type and validity. Finally, flatten the tuple
         # from ((val, type), (sem_type, valid)) -> (val, type, sem_type, valid).
         base_type_rdd.filter(lambda row: row[1] == dominant_base_type_name)
-                     .map(lambda row: (row, semantic_type_pipeline(dominant_base_type_name, row[0])))
+                     .map(lambda row: ([column_name], row, semantic_type_pipeline(dominant_base_type_name, row[0])))
                      .map(lambda row: tuple(chain(*row)))
     )
 
