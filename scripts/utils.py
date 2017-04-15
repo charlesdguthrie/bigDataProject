@@ -1,10 +1,15 @@
 from sys import exit
 from io import StringIO
 from csv import writer
+
 from .semantic_type_int import int_checks
 from .semantic_type_float import float_checks
 from .semantic_type_date import date_checks
 from .semantic_type_string import string_checks
+
+from pyspark.sql.types import StructType
+from pyspark.sql.types import StructField
+from pyspark.sql.types import StringType
 
 semantic_type_functions = {
     'int': int_checks,
@@ -278,8 +283,29 @@ def semantic_type_pipeline(base_type_name, value):
     # If we have yet to identify the semantic type after going through
     # each of the semantic type functions, we consider the semantic type
     # undeterminable and validity as not applicable.
-    if (semantic_type, is_valid) is (None, None):
+    if (semantic_type, is_valid) == (None, None):
         return ('undeterminable', 'n/a')
 
     else:
         return (semantic_type, is_valid)
+
+
+def generate_master_df(spark):
+
+    header = ['column_name', 'value', 'base_type', 'semantic_type', 'valid']
+    schema = StructType([StructField(name, StringType(), True) for name in header])
+    return spark.createDataFrame(schema)
+
+
+def rdd_to_csv(rdd):
+
+    header = ['column_name', 'value', 'base_type', 'semantic_type', 'valid']
+    schema = StructType([StructField(name, StringType(), True) for name in header])
+
+    print('Enforcing schema...')
+
+    df = rdd.toDF(schema)
+
+    print('Writing to directory...')
+
+    df.write.format('com.databricks.spark.csv').save('csv-output', header='true')

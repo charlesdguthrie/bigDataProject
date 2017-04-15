@@ -6,23 +6,26 @@ Check semantic type of ints
 import pandas as pd
 from functools import partial
 
-def _check_zip_validity(value,nys_zips):
+
+def _check_zip_validity(value, nys_zips):
     '''
     validate zip codes, making sure they are within New York State
     '''
+
     value = int(value)
+
     if value in nys_zips:
-        return ('zip','valid')
+        return ('zip', 'valid')
+
     elif (value>0) and (value<=99999):
-        return ('zip','invalid')
+        return ('zip', 'invalid')
+
     else:
-        return (None,None)
+        return (None, None)
 
 zipDF = pd.read_csv("scripts/nys_zips_clean.tsv",sep='\t')
-nys_zips = list(zipDF['ZIP Code'])
+nys_zips = set(zipDF['ZIP Code'])
 
-check_zip_validity = partial(_check_zip_validity,\
-    nys_zips=nys_zips)
-
+check_zip_validity = partial(_check_zip_validity, nys_zips=nys_zips)
 
 int_checks = [check_zip_validity]

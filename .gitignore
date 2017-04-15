@@ -4,3 +4,9 @@ __pycache__/
 # PyCharm IDEA files
 .idea
 data
+
+# Any data files
+*.csv
+*.crc
+csv-output/*
+csv-output/.*
