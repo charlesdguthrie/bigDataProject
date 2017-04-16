@@ -6,7 +6,7 @@ Check semantic type of ints
 import os
 import re
 from functools import partial
-from semantic_validity_factory import *
+from semantic_validity_factory import _semantic_validity_factory
 
 
 def _check_zip_validity(value, nys_zips):
@@ -28,7 +28,7 @@ def _check_zip_validity(value, nys_zips):
         return (None, None)
 
 #load New York State Zips
-with open('nys_zips.txt','r') as f:
+with open('scripts/nys_zips.txt','r') as f:
     zipf = f.read()
 
 #skip first and last line
@@ -40,8 +40,8 @@ check_zip_validity = partial(_check_zip_validity, nys_zips=nys_zips)
 
 
 # semantic_type = 'phone_num' (index: )
-phone_num_semantic = re.compile(r'(212|718|917)')
-phone_num_valid = re.compile(r'\d{10}')
+phone_num_valid = re.compile(r'(212|718|917)')
+phone_num_semantic = re.compile(r'^[1-9]\d{9}$')
 phone_num_args = {'semantic_match': phone_num_semantic.match,
                    'valid_check': phone_num_valid.match}
 
@@ -50,3 +50,11 @@ is_phone_number = partial(_semantic_validity_factory, semantic_name='phone_num',
 
 
 int_checks = [check_zip_validity, is_phone_number]
+
+
+if __name__ == '__main__':
+    #Some unit testing
+    for test in ['10009',06,123456,'12345',12345,'Null',None]:
+        print(test,check_zip_validity(test))
+    for test in ['9171234567','2124445555','Foo','Null']:
+        print(test,is_phone_number(test))
