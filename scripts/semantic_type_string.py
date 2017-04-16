@@ -6,7 +6,7 @@ Check semantic type of strings
 
 import re
 from functools import partial
-from semantic_validity_factory import *
+from semantic_validity_factory import _semantic_validity_factory,tester
 
 valid_boroughs = {'BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND'}
 
@@ -57,3 +57,7 @@ is_address_name = partial(_semantic_validity_factory, semantic_name='address_nam
 
 
 string_checks = [check_borough_validity, is_school_region, is_school_number, is_address_name]
+
+if __name__ == '__main__':
+    #Some unit testing
+    tester(string_checks,test_type='all')

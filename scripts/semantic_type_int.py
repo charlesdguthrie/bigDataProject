@@ -6,7 +6,7 @@ Check semantic type of ints
 import os
 import re
 from functools import partial
-from semantic_validity_factory import _semantic_validity_factory
+from semantic_validity_factory import _semantic_validity_factory,tester
 
 
 def _check_zip_validity(value, nys_zips):
@@ -47,14 +47,9 @@ phone_num_args = {'semantic_match': phone_num_semantic.match,
 
 is_phone_number = partial(_semantic_validity_factory, semantic_name='phone_num', **phone_num_args)
 
-
-
 int_checks = [check_zip_validity, is_phone_number]
 
 
 if __name__ == '__main__':
     #Some unit testing
-    for test in ['10009',06,123456,'12345',12345,'Null',None]:
-        print(test,check_zip_validity(test))
-    for test in ['9171234567','2124445555','Foo','Null',None]:
-        print(test,is_phone_number(test))
+    tester(int_checks,test_type='all')
