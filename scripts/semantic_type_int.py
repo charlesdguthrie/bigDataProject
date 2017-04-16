@@ -4,7 +4,9 @@ semantic_type_int.py
 Check semantic type of ints
 '''
 import os
+import re
 from functools import partial
+from semantic_validity_factory import *
 
 
 def _check_zip_validity(value, nys_zips):
@@ -37,4 +39,14 @@ nys_zips = [int(z) for z in nys_zips]
 check_zip_validity = partial(_check_zip_validity, nys_zips=nys_zips)
 
 
-int_checks = [check_zip_validity]
+# semantic_type = 'phone_num' (index: )
+phone_num_semantic = re.compile(r'(212|718|917)')
+phone_num_valid = re.compile(r'\d{10}')
+phone_num_args = {'semantic_match': phone_num_semantic.match,
+                   'valid_check': phone_num_valid.match}
+
+is_phone_number = partial(_semantic_validity_factory, semantic_name='phone_num', **phone_num_args)
+
+
+
+int_checks = [check_zip_validity, is_phone_number]
