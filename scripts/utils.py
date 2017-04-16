@@ -1,10 +1,10 @@
-from sys import exit
-import os
-
 from .semantic_type_int import int_checks
 from .semantic_type_float import float_checks
 from .semantic_type_date import date_checks
 from .semantic_type_string import string_checks
+
+from sys import exit
+import os
 
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
@@ -49,7 +49,9 @@ def cli_help():
 def read_data(spark, file):
     """Reads input CSV and returns Spark DataFrame object
 
-    :return data: Spark DataFrame representing user-provided CSV
+    :param spark: SparkSession object used for reading CSV.
+    :param file: string representing filename path.
+    :return data: Spark DataFrame representing user-provided CSV.
     """
 
     data = spark.read.csv(path=file, header=True)
@@ -302,3 +304,11 @@ def rdd_to_csv(rdd):
     # Cast our RDD to a DataFrame and write to output directory "data".
     df = rdd.toDF(schema)
     df.write.csv(os.path.join("data"))
+
+    # TODO test this
+    # TODO get script workflow working
+    # TODO update README
+    # TODO semantic type check
+    # TODO aggregate analysis functions
+    with open('data/header.txt', 'w') as f:
+        f.write('id,column_name,value,base_type,semantic_type,is_valid\n')
