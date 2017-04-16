@@ -1,0 +1,1 @@
+id,column_name,value,base_type,semantic_type,is_valid

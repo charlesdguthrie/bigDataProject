@@ -24,6 +24,7 @@ base_type__names = {
     str: 'string'
 }
 
+
 def main():
 
     # Initialize time counter.
