@@ -25,10 +25,16 @@ def _check_zip_validity(value, nys_zips):
     else:
         return (None, None)
 
+#load New York State Zips
 with open('nys_zips.txt','r') as f:
     zipf = f.read()
-nys_zips = zipf.split(os.linesep)[1:]
+
+#skip first and last line
+nys_zips = zipf.split(os.linesep)[1:-1]
+#convert to int
+nys_zips = [int(z) for z in nys_zips]
 
 check_zip_validity = partial(_check_zip_validity, nys_zips=nys_zips)
+
 
 int_checks = [check_zip_validity]
