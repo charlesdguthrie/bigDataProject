@@ -3,7 +3,7 @@ semantic_type_int.py
 
 Check semantic type of ints
 '''
-import pandas as pd
+import os
 from functools import partial
 
 
@@ -11,8 +11,10 @@ def _check_zip_validity(value, nys_zips):
     '''
     validate zip codes, making sure they are within New York State
     '''
-
-    value = int(value)
+    try:
+        value = int(value)
+    except:
+        return (None, None)
 
     if value in nys_zips:
         return ('zip', 'valid')
@@ -23,8 +25,9 @@ def _check_zip_validity(value, nys_zips):
     else:
         return (None, None)
 
-zipDF = pd.read_csv("scripts/nys_zips_clean.tsv",sep='\t')
-nys_zips = set(zipDF['ZIP Code'])
+with open('nys_zips.txt','r') as f:
+    zipf = f.read()
+nys_zips = zipf.split(os.linesep)[1:]
 
 check_zip_validity = partial(_check_zip_validity, nys_zips=nys_zips)
 

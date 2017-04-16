@@ -23,5 +23,5 @@ x	Due Date
 x	Resolution Action Updated Date
 	Community Board
 x	Borough - must be one of 5
-	X Coordinate (State Plane) - must be in NYS shapefile
-	Y Coordinate (State Plane)
+	X Coordinate (State Plane) - must be in NYS Box https://en.wikipedia.org/wiki/List_of_extreme_points_of_U.S._states
+	Y Coordinate (State Plane) - see X Coord
