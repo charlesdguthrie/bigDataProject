@@ -56,5 +56,5 @@ if __name__ == '__main__':
     #Some unit testing
     for test in ['10009',06,123456,'12345',12345,'Null',None]:
         print(test,check_zip_validity(test))
-    for test in ['9171234567','2124445555','Foo','Null']:
+    for test in ['9171234567','2124445555','Foo','Null',None]:
         print(test,is_phone_number(test))
