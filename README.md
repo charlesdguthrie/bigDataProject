@@ -61,8 +61,10 @@ Hence, our dataset is around 7.3 GB and contains 15,358,921 observations.
 
 A few other steps we took:
 
-1. After downloading a TSV of New York State information, we isolated the Zipcode field in order to perform a semantic type evaluation on the validity of any particular zipcode. We did this with the following:
+1. After downloading a TSV of New York State information from https://www.unitedstateszipcodes.org/ny/, we isolated the ZIP code field in order to perform a semantic type evaluation on the validity of any particular ZIP code. We did this with the following:
 
 ```bash
 $ tail -n +2 nys_zips_clean.tsv | cut -f 1 > nys_zips.txt 
 ```
+
+2. Latitude-Longitude bounds for New York State came from Wikipedia: https://en.wikipedia.org/wiki/List_of_extreme_points_of_U.S._states
