@@ -286,7 +286,7 @@ def index_rdd(rdd):
     return id_rdd
 
 
-def rdd_to_csv(rdd):
+def rdd_to_csv(rdd, name):
     """Given a RDD, transform to DataFrame and output directory containing CSVs.
 
     :param rdd: RDD we would like to output as CSV
@@ -301,14 +301,17 @@ def rdd_to_csv(rdd):
         [StructField(name, StringType(), True) for name in header]
     )
 
+    # TODO fix our column name to something more appropriate
+    # TODO name = '_'.join(name.lower().split())
+    # TODO dir = "data/{}".format(name)
+
     # Cast our RDD to a DataFrame and write to output directory "data".
     df = rdd.toDF(schema)
+
+    # TODO df.write.csv(os.path.join(dir))
     df.write.csv(os.path.join("data"))
 
-    # TODO test this
-    # TODO get script workflow working
-    # TODO update README
-    # TODO semantic type check
-    # TODO aggregate analysis functions
-    with open('data/header.txt', 'w') as f:
+    # TODO saveAsTextFile()?
+    # TODO with open('{}/header.txt'.format(), 'w') as f:
+    with open('data/header.txt'.format(), 'w') as f:
         f.write('id,column_name,value,base_type,semantic_type,is_valid\n')

@@ -48,6 +48,7 @@ def main():
 
         # Generate RDD containing (row_index, column_name, value, base_type, semantic_type, invalid) tuples.
         column_rdd = analyze(column, data)
+        # TODO rdd_to_csv(column_rdd, column)
 
         # Take the union between the previous (or empty) RDD and the new RDD.
         master_rdd = master_rdd.union(column_rdd)
