@@ -47,3 +47,8 @@ check_date_validity = partial(_check_date_validity,
                               fmt='%m/%d/%Y %I:%M:%S %p')
 
 date_checks = [check_date_validity]
+
+if __name__ == '__main__':
+    #Some unit testing
+    from semantic_validity_factory import tester
+    tester(date_checks,test_type='all')

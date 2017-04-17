@@ -13,6 +13,9 @@ def _semantic_validity_factory(value, semantic_name, null_values=set(('Unspecifi
         return (None, None)
 
 def tester(check_list,test_type='all'):
+    '''
+    test whether semantic validity checks are working
+    '''
     test_cases = {
         'strings':['10009','12345','Null','9171234567','2124445555','Foo'],
         'all':['10009',06,123456,'12345',12345,'(917)123-4567',
@@ -21,8 +24,8 @@ def tester(check_list,test_type='all'):
     }
     for i,check in enumerate(check_list):
         print('\n{}\n'.format(i))
-        for test in test_cases[test_type]:
+        for case in test_cases[test_type]:
             try:
-                print(test,check(test))
+                print(case,check(case))
             except:
-                print('*** -->TEST FAILED',test)
+                print('*** -->CHECK FAILED',case)
