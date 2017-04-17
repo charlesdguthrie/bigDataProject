@@ -286,7 +286,7 @@ def index_rdd(rdd):
     return id_rdd
 
 
-def rdd_to_csv(rdd, name):
+def rdd_to_csv(rdd):
     """Given a RDD, transform to DataFrame and output directory containing CSVs.
 
     :param rdd: RDD we would like to output as CSV

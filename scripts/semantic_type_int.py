@@ -38,15 +38,11 @@ check_zip_validity = partial(_check_zip_validity, nys_zips=zip_codes)
 phone_num_valid = re.compile(r'(212|718|917)')
 phone_num_semantic = re.compile(r'^[1-9]\d{9}$')
 phone_num_args = {'semantic_match': phone_num_semantic.match,
-                   'valid_check': phone_num_valid.match}
+                  'valid_check': phone_num_valid.match}
 
 # Initialize partial function to check phone number.
 is_phone_number = partial(semantic_validity_factory, semantic_name='phone_num', **phone_num_args)
 
 # Define list of semantic type evaluation functions.
 int_checks = [check_zip_validity, is_phone_number]
-
-if __name__ == '__main__':
-    #Some unit testing
-    tester(int_checks,test_type='all')
 

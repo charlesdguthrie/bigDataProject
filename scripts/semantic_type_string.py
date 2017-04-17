@@ -7,9 +7,6 @@ import re
 from functools import partial
 from .semantic_validity_factory import semantic_validity_factory
 
-import re
-from functools import partial
-from semantic_validity_factory import _semantic_validity_factory,tester
 
 valid_boroughs = {'BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND'}
 
@@ -54,6 +51,3 @@ is_address_name = partial(semantic_validity_factory, semantic_name='address_name
 
 string_checks = [check_borough_validity, is_school_region, is_school_number, is_address_name]
 
-if __name__ == '__main__':
-    #Some unit testing
-    tester(string_checks,test_type='all')

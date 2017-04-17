@@ -32,8 +32,3 @@ check_coordinate_validity = partial(_check_coordinate_validity,
 #After defining float check functions, add them to this list.  
 float_checks = [check_coordinate_validity]
 
-if __name__ == '__main__':
-    
-    # Some unit testing
-    from semantic_validity_factory import tester
-    tester(float_checks,test_type='all')
