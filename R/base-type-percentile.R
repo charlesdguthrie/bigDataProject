@@ -1,6 +1,6 @@
 library(tidyverse)
 
-data <- readr::read_csv("../data/base-type-aggregate/master.csv", col_types = "cdd")
+data <- readr::read_csv("../data/base-type-aggregate/master.csv", col_types = "ccd")
 
 data <- data %>%
   mutate(base_type = as.factor(base_type))
@@ -23,5 +23,5 @@ plot <-
           panel.grid.minor.x = element_blank()) +
     coord_flip()
 
-ggsave(plot, height = 7, units = "in", device = "png", 
+ggsave(plot, height = 8, width = 7, units = "in", device = "png", 
        path = "output", filename = "base-type-percentile.png")
