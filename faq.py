@@ -33,6 +33,7 @@ def main():
     global_start = time()
 
     # Initialize RDD container that will union with all upcoming RDDs.
+    # TODO switch to column-by-column output?
     master_rdd = sc.emptyRDD()
 
     # Read input data.

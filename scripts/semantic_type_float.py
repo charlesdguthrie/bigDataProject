@@ -6,7 +6,7 @@ Check semantic type of floats
 from functools import partial
 
 
-def _check_coordinate_validity(value,lat_min,lat_max,long_min,long_max):
+def _check_coordinate_validity(value, lat_min, lat_max, long_min, long_max):
     '''
     validate coordinate by making sure it is inside the box
     containing all of New York State
@@ -31,5 +31,5 @@ check_coordinate_validity = partial(_check_coordinate_validity,
                                     long_min=-79.76, long_max=-71.86)
 
 
-#After defining float check functions, add them to this list.  
+# After defining float check functions, add them to this list.
 float_checks = [check_coordinate_validity]
