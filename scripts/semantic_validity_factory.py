@@ -1,16 +1,19 @@
-from __future__ import print_function
 
-def _semantic_validity_factory(value, semantic_name, null_values=set(('Unspecified','N/A','',0,None)), **kwargs) :
+def semantic_validity_factory(value, semantic_name, null_values=set(['Unspecified', 'N/A', '', 0, None]), **kwargs) :
+
     if value in null_values:
         return (None, None)
+
     elif all(f(value) for name, f in kwargs.items() if 'semantic' in name):
         if all(f(value) for name, f in kwargs.items() if 'valid' in name):
-            return (semantic_name,'valid')
+            return (semantic_name, 'valid')
         else:
-            return (semantic_name,'invalid')
+            return (semantic_name, 'invalid')
+
     else:
         # only checking for semantic type!
         return (None, None)
+
 
 def tester(check_list,test_type='all'):
     '''
@@ -29,3 +32,4 @@ def tester(check_list,test_type='all'):
                 print(case,check(case))
             except:
                 print('*** -->CHECK FAILED',case)
+

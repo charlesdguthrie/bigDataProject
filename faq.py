@@ -1,10 +1,12 @@
-from base_type import base_type_int, base_type_float, base_type_datetime
+from scripts.base_type import base_type_int, base_type_float, base_type_datetime
 from scripts.utils import *
-from pyspark.sql import SparkSession
-from pyspark.context import SparkContext
+
 from sys import argv
 from time import time
 from itertools import chain
+
+from pyspark.sql import SparkSession
+from pyspark.context import SparkContext
 
 
 # Establish Spark session and context.
@@ -24,12 +26,14 @@ base_type__names = {
     str: 'string'
 }
 
+
 def main():
 
     # Initialize time counter.
     global_start = time()
 
     # Initialize RDD container that will union with all upcoming RDDs.
+    # TODO switch to column-by-column output?
     master_rdd = sc.emptyRDD()
 
     # Read input data.
@@ -44,12 +48,13 @@ def main():
 
         # Generate RDD containing (row_index, column_name, value, base_type, semantic_type, invalid) tuples.
         column_rdd = analyze(column, data)
+        # TODO rdd_to_csv(column_rdd, column)
 
         # Take the union between the previous (or empty) RDD and the new RDD.
         master_rdd = master_rdd.union(column_rdd)
 
         # Print per-column time diagnostics.
-        print('\nColumn {} `{}` took {:.1f} seconds.\n'.format(index, column, time() - iter_start))
+        print('Column {} `{}` took {:.1f} seconds.'.format(index, column, time() - iter_start))
 
     # Output our all-in-one RDD containing RDDs that represent
     # each column's values to a CSV.
