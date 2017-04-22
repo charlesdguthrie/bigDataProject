@@ -1,8 +1,11 @@
+#SPARK_SUBMIT=/Users/danny/spark-2.0.1-bin-hadoop2.7/bin/spark-submit
+SPARK_SUBMIT=$SPARK_HOME/bin/spark-submit
+
 # Initial spark-submit job on faq.py. Takes path to data CSV file.
 echo '---------------------------'
 echo 'Running spark-submit faq.py'
 echo '---------------------------'
-/Users/danny/spark-2.0.1-bin-hadoop2.7/bin/spark-submit faq.py $1 :all
+$SPARK_SUBMIT faq.py $1 :all
 
 # Upon completion, move join-with-header.sh to the data directory
 # and run it.
@@ -18,7 +21,7 @@ cd ..
 echo '---------------------------------'
 echo 'Running spark-submit aggregate.py'
 echo '---------------------------------'
-/Users/danny/spark-2.0.1-bin-hadoop2.7/bin/spark-submit aggregate.py data/master.csv
+$SPARK_SUBMIT aggregate.py data/master.csv
 
 cd data
 
