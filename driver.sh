@@ -17,6 +17,8 @@ cd data
 ./join-with-header.sh
 cd ..
 
+exit 1
+
 # Now that master.csv is a CSV with a header, pipe that into aggregate.py.
 echo '---------------------------------'
 echo 'Running spark-submit aggregate.py'
