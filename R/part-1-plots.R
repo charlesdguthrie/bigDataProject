@@ -43,8 +43,8 @@ complaints.plot <-
     ) +
     coord_flip()
 
-ggsave(complaints.plot, height = 8, units = "in",
-       device = "png", path = ".",
+ggsave(complaints.plot, height = 8, width = 7, 
+       units = "in", device = "png", path = ".",
        filename = "complaints-total.png")
 
 # Top 25 complaints account for 70% of all complaints.
@@ -88,7 +88,7 @@ complaints.across.boroughs.plot <-
       legend.title = element_blank()
     )
 
-ggsave(complaints.across.boroughs.plot, height = 8, 
+ggsave(complaints.across.boroughs.plot, height = 9, width = 8,
        units = "in", device = "png", path = ".",
        filename = "complaints-by-borough.png")
 
