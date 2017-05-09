@@ -2,92 +2,90 @@ import pyspark.sql
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 from pyspark.sql import functions as F
-#import pandas as pd
+import pandas as pd
+from city2borough import clean_borough
 
-ss = SparkSession.builder \
+FNAME_311 = '../data/311-all.csv'
+#FNAME_311 = '../data/311_sample_head.csv'
+BUILDING_DATADIR = '../data/BORO_zip_files_csv/'
+
+spark = SparkSession.builder \
                 .master("local") \
                 .appName("311 Analysis") \
                 .getOrCreate()
-filename_311 = '311-all.csv'
-hoods_fname = 'wiki_neighborhoods_2.csv'
-filename_build = 'Buildings_Clean.csv' 
 
-cdf = ss.read.csv(filename_311, header=True)
-# 1. Filter for only rows where we have a HEATING complaint
-hdf = cdf.filter(cdf["Complaint Type"].like('%HEATING%'))
+#Strip whitespace and convert string to upper
+clean_address = F.udf(lambda address: address.upper().strip() if address else None, StringType())
 
-# 2. Clean the address data
-def clean_address(address):
-    try:
-        return str.upper(address).strip()
-    except:
-        return None
+def clean_complaints_df(cdf):
+    #clean Borough field to replace unspecified with borough
+    cdf = clean_borough(cdf)
+    # 1. Filter for only rows where we have a HEATING or HEAT/HOT WATER complaint
+    hdf = cdf.filter(cdf["Complaint Type"].like('%HEAT%'))
+    #clean "Incident Address" and create new column called "Address"
+    hdf = hdf.withColumn('Address', clean_address('Incident Address'))
+    return hdf
 
-clean_address_as_col = F.udf(lambda address: address.upper().strip() if address else None, StringType())
 
-hdf = hdf.withColumn('Address',
-                     clean_address_as_col('Incident Address'))
+#Import building age datasets
+#DEPRECATED: bdf = spark.read.csv('Buildings_Clean.csv', header=True)
+#TODO if time: wget, import and unzip file
+# zip_ref = zipfile.ZipFile('../data/BORO_zip_files_csv.zip', 'r')
+# zip_ref.extractall('../data/')
+# zip_ref.close()
+def load_building_files(datadir):
+    mn = spark.read.csv(datadir+'MN.csv',header=True)
+    qn = spark.read.csv(datadir+'QN.csv',header=True)
+    bk = spark.read.csv(datadir+'BK.csv',header=True)
+    si = spark.read.csv(datadir+'SI.csv',header=True)
+    bx = spark.read.csv(datadir+'BX.csv',header=True)
+    bdf = mn.unionAll(qn)\
+            .unionAll(bk)\
+            .unionAll(si)\
+            .unionAll(bx)
+    return bdf
 
-# 3. Use Wikipedia data to find 311 borough
-# Ideally, instead of using this loaded dict, would use some kind of RDD...
-def import_neighborhoods(fname):
+
+def clean_building_df(bdf):
     '''
-    import wikipedia neighborhoods file
-    returns: dictionary where key is borough
-        and value is list of neighborhoods
+    select only Address, YearBuilt, and Borough,
+    eliminate YearBuilt<=0,
+    and change abbreviated boroughs to full borough names
+    args:
+        bdf: dataframe of PLUTO buildings data
+    returns:
+        bdf: cleaned dataframe
     '''
-    with open(fname,'r') as f:
-        raw = f.read()
-    lines = raw.split('\n')
-    boroughs = {}
-    for line in lines:
-        fields = line.split(',')
-        borough = fields.pop(0)
-        if borough not in boroughs:
-            boroughs[borough]=[]
-        for f in fields:
-            if f:
-                neighborhood = str.upper(f.strip())
-                boroughs[borough].append(neighborhood)
-    boroughs2 = {'QN':boroughs['Queens']+['QUEENS'],
-                 'BK':boroughs['Brooklyn']+['BROOKLYN'],
-                 'MN':boroughs['Manhattan']+['MANHATTAN','NEW YORK'],
-                 'SI':boroughs['Staten Island']+['STATEN ISLAND'],
-                 'BX':boroughs['Bronx']+['BRONX']}
-    return boroughs2
+    bdf = bdf.select(['Address','YearBuilt','ZipCode','Borough']) \
+             .filter(bdf['YearBuilt']>0)
+    bdf = bdf.withColumn('Address', clean_address('Address'))
+    borough_dict = {
+        'MN':'MANHATTAN',
+        'BX':'BRONX',
+        'BK':'BROOKLYN',
+        'SI':'STATEN ISLAND',
+        'QN':'QUEENS'
+    }
+    unabbreviate = F.udf(lambda x: borough_dict[x], StringType())
+    bdf = bdf.withColumn('Borough',unabbreviate('Borough'))
+    return bdf
 
-#import neighborhoods data
-##
-neighborhoods = import_neighborhoods(hoods_fname)
+cdf = spark.read.csv(FNAME_311, header=True)
+hdf = clean_complaints_df(cdf)
+bdf = load_building_files(BUILDING_DATADIR)
+bdf = clean_building_df(bdf)
 
-def city2borough(city):
-    for borough,hood_list in neighborhoods.iteritems():
-        if city in hood_list:
-            return borough
-
-city2borough_col = F.udf(city2borough)
-
-hdf = hdf.withColumn('Borough', city2borough_col('City'))
-
-bdf = ss.read.csv(filename_build, header=True)
-
+#create merged mdf from joining hdf to bdf
 mdf = hdf.join(bdf, on=['Address','Borough'], how='inner')
 
+#Get building count by yearBuilt
 totals = bdf.groupby(['YearBuilt']).agg({'*':'count'})
 totals = totals.withColumnRenamed('count(1)', 'total')
 
-complaints = mdf.groupby(['YearBuilt','Complaint Type']).agg({'*':'count'})
+#Get complaint count by YearBuilt
+complaints = mdf.groupby(['YearBuilt']).agg({'*':'count'})
 complaints = complaints.withColumnRenamed('count(1)','complaints')
 
 result = totals.join(complaints, on='YearBuilt', how='inner')
-
 # Write to CSV
-#result.toPandas().to_csv('result.csv')
-#result.write.option("header", "true").csv('result.csv')
-#result.write.format('csv').save('result.csv')
-result.write.format('csv').save('/tmp/result.csv')
-
-# Write to .txt
-#result.saveAsTextFile('result.txt')
-
-#df = pd.read_csv('result.csv').sort_values('YearBuilt')
+result.toPandas().to_csv('../data/complaints_v_age.csv')
