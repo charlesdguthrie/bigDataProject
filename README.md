@@ -37,7 +37,7 @@ A few other steps we took:
 1. After downloading a TSV of New York State information from https://www.unitedstateszipcodes.org/ny/, we isolated the ZIP code field in order to perform a semantic type evaluation on the validity of any particular ZIP code. We did this with the following:
 
 	```bash
-	$ tail -n +2 nys_zips_clean.tsv | cut -f 1 > nys_zips.txt 
+	$ tail -n +2 nys_zips_clean.tsv | cut -f 1 > nys_zips.txt
 	```
 
 2. Latitude-Longitude bounds for New York State came from Wikipedia: https://en.wikipedia.org/wiki/List\_of\_extreme\_points\_of\_U.S.\_states
@@ -75,3 +75,13 @@ Assuming you have all required dependencies (Spark), this should output a helpfu
 ```building_age.py``` joins the 311-Complaints the NYC PLUTO dataset, which includes age of buildings, to produce average number of heating complaints per building vs. the year it was built.  This is part of the hypothesis that older buildings would be more likely to have heating complaints.  
 
 ```city2borough.py``` cleans the ```Borough``` field to fill in missing boroughs using other indicators of location from the dataset.
+
+```CensusAPIQueryTest.ipynb``` submits specific table queries to the Census Reporter API and returns the desired data in a JSON file, the contents of which can be iterated over, inserted into a dictionary and converted into a pandas dataframe.
+
+###### *Specific functions include:*
+
+```get_table_data(table_ids)```: Pulls targeted data from API. Takes a specific table code as user input and filters on primary and secondary geoids for New York City. Returns a JSON file.
+
+```prep_for_pandas(json_data,include_moe=False)```: Iterates over JSON file, assigns elements to key-value pairs and inserts them into a dictionary.
+
+```dataframe_from_json(table_name)```: Takes table code as user input, uses it to call ```get_table_data()```, applies ```prep_for_pandas()``` to the JSON file that is produced and converts the output (a dictionary) to a pandas dataframe.  
