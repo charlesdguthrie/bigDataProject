@@ -6,7 +6,7 @@ import pandas as pd
 from city2borough import clean_borough
 
 FNAME_311 = '../data/311-all.csv'
-#FNAME_311 = '../data/311_sample_head.csv'
+#FNAME_311 = '../data/311_sample.csv'
 BUILDING_DATADIR = '../data/BORO_zip_files_csv/'
 
 spark = SparkSession.builder \
@@ -70,22 +70,23 @@ def clean_building_df(bdf):
     bdf = bdf.withColumn('Borough',unabbreviate('Borough'))
     return bdf
 
-cdf = spark.read.csv(FNAME_311, header=True)
-hdf = clean_complaints_df(cdf)
-bdf = load_building_files(BUILDING_DATADIR)
-bdf = clean_building_df(bdf)
+if __name__ == '__main__':
+    cdf = spark.read.csv(FNAME_311, header=True)
+    hdf = clean_complaints_df(cdf)
+    bdf = load_building_files(BUILDING_DATADIR)
+    bdf = clean_building_df(bdf)
 
-#create merged mdf from joining hdf to bdf
-mdf = hdf.join(bdf, on=['Address','Borough'], how='inner')
+    #create merged mdf from joining hdf to bdf
+    mdf = hdf.join(bdf, on=['Address','Borough'], how='inner')
 
-#Get building count by yearBuilt
-totals = bdf.groupby(['YearBuilt']).agg({'*':'count'})
-totals = totals.withColumnRenamed('count(1)', 'total')
+    #Get building count by yearBuilt
+    totals = bdf.groupby(['YearBuilt']).agg({'*':'count'})
+    totals = totals.withColumnRenamed('count(1)', 'total')
 
-#Get complaint count by YearBuilt
-complaints = mdf.groupby(['YearBuilt']).agg({'*':'count'})
-complaints = complaints.withColumnRenamed('count(1)','complaints')
+    #Get complaint count by YearBuilt
+    complaints = mdf.groupby(['YearBuilt']).agg({'*':'count'})
+    complaints = complaints.withColumnRenamed('count(1)','complaints')
 
-result = totals.join(complaints, on='YearBuilt', how='inner')
-# Write to CSV
-result.toPandas().to_csv('../data/complaints_v_age.csv')
+    result = totals.join(complaints, on='YearBuilt', how='inner')
+    # Write to CSV
+    result.toPandas().to_csv('../data/complaints_v_age.csv')

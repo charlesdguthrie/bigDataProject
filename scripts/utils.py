@@ -315,3 +315,19 @@ def rdd_to_csv(rdd):
     # TODO with open('{}/header.txt'.format(), 'w') as f:
     with open('data/header.txt'.format(), 'w') as f:
         f.write('id,column_name,value,base_type,semantic_type,is_valid\n')
+
+def reduce_dataset(df):
+    '''
+    Reduce the columns in the dataset to just the necessary ones.  
+    '''
+    cols = [
+        'Unique Key',
+        'Created Date',
+        'Complaint Type',
+        'Incident Zip',
+        'Borough',
+        'Latitude',
+        'Longitude'
+    ]
+    reduced = df.select(cols)
+    return reduced, cols
