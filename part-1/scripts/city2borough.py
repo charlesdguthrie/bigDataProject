@@ -3,7 +3,7 @@ import os
 from pyspark.sql.functions import udf
 from pyspark.sql.types import StringType
 
-NEIGHBORHOODS_CSV_FPATH = '../data/wiki_Neighborhoods_in_New_York_City.csv'
+NEIGHBORHOODS_CSV_FPATH = '../../data/wiki_Neighborhoods_in_New_York_City.csv'
 
 def import_neighborhoods(fname):
     '''

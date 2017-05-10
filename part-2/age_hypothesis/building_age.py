@@ -3,11 +3,13 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 from pyspark.sql import functions as F
 import pandas as pd
+import sys
+sys.path.append("../..")
 from city2borough import clean_borough
 
-FNAME_311 = '../data/311-all.csv'
-#FNAME_311 = '../data/311_sample.csv'
-BUILDING_DATADIR = '../data/BORO_zip_files_csv/'
+#FNAME_311 = '../../data/311-all.csv'
+FNAME_311 = '../../data/311_sample_head.csv'
+BUILDING_DATADIR = '../../data/BORO_zip_files_csv/'
 
 spark = SparkSession.builder \
                 .master("local") \
@@ -89,4 +91,4 @@ if __name__ == '__main__':
 
     result = totals.join(complaints, on='YearBuilt', how='inner')
     # Write to CSV
-    result.toPandas().to_csv('../data/complaints_v_age.csv')
+    result.toPandas().to_csv('results/complaints_v_age.csv')
