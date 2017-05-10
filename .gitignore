@@ -5,7 +5,7 @@ __pycache__/
 .idea
 
 # Any data files
-*.csv
+data/
 *.crc
 csv-output/*
 csv-output/.*
