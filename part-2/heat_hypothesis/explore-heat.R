@@ -1,6 +1,3 @@
-# Likely have to change the directory.
-setwd("~/Documents/courses/spring-2017/big-data/bigDataProject/R/part-2/heat-hypothesis/")
-
 library(tidyverse)
 library(stringr)
 library(sparklyr)
