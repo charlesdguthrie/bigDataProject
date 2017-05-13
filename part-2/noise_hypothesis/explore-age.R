@@ -4,7 +4,7 @@ library(sparklyr)
 library(magrittr)
 library(ggmap)
 
-complaints <- read_csv(file = "../../../data/311-reduced.csv")
+complaints <- read_csv(file = "../../data/311-reduced.csv")
 names(complaints) %<>% make.names
 
 only.noise <-
@@ -82,7 +82,7 @@ ggsave(nyc.monthly.noise, filename = "nyc-monthly-noise.png", device = "png",
 
 ### Plot 3: Income vs Heating complaint frequency
 
-census.age <- read_csv("../../../data/census_age.csv")
+census.age <- read_csv("../../data/census_age.csv")
 names(census.age) %<>% make.names
 census.age <- census.age %>% mutate(ZIP = ZIP.Loc.Code %>% as.factor)
 
